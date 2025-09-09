@@ -4,7 +4,7 @@ This project is a specialized platform for technological intelligence gathering 
 
 ## 📊 System Architecture Overview
 
-![NewsAI Graph Architecture](./AgenticRagBootcamp/graph.png)
+![NewsAI Graph Architecture](./graph.png)
 *LangGraph workflow showing the adaptive RAG system for AI news synthesis*
 
 ![Artificial Intelligence](https://img.shields.io/badge/AI-Artificial%20Intelligence-blue)
