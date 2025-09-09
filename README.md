@@ -1,0 +1,96 @@
+NewsAI: Adaptive RAG for AI News Synthesis
+This project is a specialized platform for technological watch in artificial intelligence. Based on an advanced RAG (Retrieval-Augmented Generation) architecture, it uses LangGraph to create a dynamic workflow capable of synthesizing AI news from two distinct sources: PDF documents provided by the user or real-time web search.
+
+🚀 Key Features
+Dual Information Source: Get summaries of AI news either by uploading an article (.pdf or .txt file) or by directly asking a question to launch a web search.
+
+Automatic Synthesis: The core of the system is its ability to read content (whether from a file or the web) and generate a concise and relevant summary.
+
+Real-Time Web Search: If you do not provide a document, the system uses the Tavily API to search for the latest information on the AI topic you are interested in.
+
+Intelligent Self-Correction: Thanks to a self-reflection mechanism, the system evaluates the relevance of the information found and the quality of its own summaries to ensure a reliable and accurate response.
+
+Intuitive User Interface: The Streamlit application allows for simple interaction: upload a file or ask a question to receive a clear and direct summary.
+
+🏛️ Architecture
+The architecture remains modular and robust, but it is now optimized for news synthesis.
+
+User Interface (streamlit_app.py)
+
+Allows the user to choose their mode of interaction: upload a document or ask a question.
+
+Processes uploaded files or forwards the question to the graph engine.
+
+Displays the final summary in a conversational manner.
+
+Graph Engine (graph.py)
+
+Orchestrates the workflow with LangGraph. The main logic is to direct the query to either document processing or web search.
+
+Nodes and LLM Chains
+
+Internal components (retrieval, evaluation, query rewriting) are now applied to either the document content or web search results to produce the best possible summary.
+
+🤖 Models and Technical Components
+The project relies on a selection of cutting-edge models and technologies to ensure its performance.
+
+LLM Provider: Groq
+
+Model used: gemma2-9b-it. This model is particularly effective for synthesis, generation, and text comprehension tasks, making it ideal for this application.
+
+Embedding Model: Hugging Face (sentence-transformers/all-MiniLM-L6-v2)
+
+Used to vectorize the content of uploaded documents, allowing for effective relevance search within the text.
+
+Vector Database: ChromaDB
+
+Stores the vectors of PDF documents to allow the system to "read" and understand the content before summarizing it.
+
+Web Search API: Tavily AI
+
+The search engine for finding the latest news on AI when the user does not provide a document.
+
+⚙️ Request Workflow
+Input: The user arrives at the Streamlit application.
+
+Choice of Action:
+
+Case 1 (File provided): The user uploads a document. The system splits, vectorizes, and stores it. The internal RAG flow is then used to extract and summarize the key points of the document.
+
+Case 2 (Question asked): The user asks a question in the input field. The system activates the web search node (WEBSEARCH) to collect relevant articles and information.
+
+Summary Generation (generate): Whether the information comes from the document or the web, the gemma2-9b-it LLM is tasked with synthesizing the information into a clear and concise summary.
+
+Self-Reflection and Validation: The summary is checked to ensure it is factual (based on the source) and that it correctly addresses the user's implicit request (to get the latest news on a topic).
+
+Display: The final summary is presented to the user in the chat interface.
+
+🛠️ Installation and Usage
+Prerequisites
+Python 3.10+
+
+A package manager like pip
+
+1. Clone the Repository
+git clone <REPOSITORY_URL>
+cd <REPOSITORY_NAME>
+
+2. Install Dependencies
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+3. Configure Environment Variables
+Create a .env file with your API keys.
+
+# .env
+GROQ_API_KEY="gsk_..."
+TAVILY_API_KEY="tvly-..."
+
+4. Launch the Application
+streamlit run streamlit_app.py
+
+Open your browser to http://localhost:8501. You can now upload a document or ask a question to get a summary of AI news.
+
+5. Website
+https://agenticragbootcamp.streamlit.app/
