@@ -1,116 +1,154 @@
-# NewsAI: RAG Adaptatif pour la Synthèse d'Actualités IA
+# NewsAI: Adaptive RAG for AI News Synthesis
 
-Ce projet est une plateforme spécialisée dans la veille technologique sur l'intelligence artificielle. Basé sur une architecture RAG (Retrieval-Augmented Generation) avancée, il utilise LangGraph pour créer un flux de travail dynamique capable de synthétiser des actualités sur l'IA à partir de deux sources distinctes : des documents PDF fournis par l'utilisateur ou une recherche en temps réel sur le web.
+This project is a specialized platform for technological intelligence gathering on artificial intelligence. Based on an advanced RAG (Retrieval-Augmented Generation) architecture, it uses LangGraph to create a dynamic workflow capable of synthesizing AI news from two distinct sources: PDF documents provided by the user or real-time web search.
 
-![Intelligence Artificielle](https://img.shields.io/badge/AI-Intelligence%20Artificielle-blue)
+## 📊 System Architecture Overview
+
+![NewsAI Graph Architecture](./main/graph.png)
+*LangGraph workflow showing the adaptive RAG system for AI news synthesis*
+
+![Artificial Intelligence](https://img.shields.io/badge/AI-Artificial%20Intelligence-blue)
 ![Python](https://img.shields.io/badge/python-v3.10+-blue.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-🦜-green)
 
-## 🚀 Fonctionnalités Clés
+## 🚀 Key Features
 
-- **Double Source d'Information** : Obtenez des résumés d'actualités sur l'IA soit en téléversant un article (fichier .pdf ou .txt), soit en posant directement une question pour lancer une recherche sur le web.
+- **Dual Information Sources**: Get AI news summaries either by uploading an article (PDF or TXT file) or by directly asking a question to trigger a web search.
 
-- **Synthèse Automatique** : Le cœur du système est sa capacité à lire le contenu (qu'il provienne d'un fichier ou du web) et à en générer un résumé concis et pertinent.
+- **Automatic Synthesis**: The core of the system is its ability to read content (whether from a file or the web) and generate a concise and relevant summary.
 
-- **Recherche Web en Temps Réel** : Si vous ne fournissez pas de document, le système utilise l'API Tavily pour rechercher les dernières informations sur le sujet de l'IA qui vous intéresse.
+- **Real-Time Web Search**: If you don't provide a document, the system uses the Tavily API to search for the latest information on the AI topic you're interested in.
 
-- **Auto-Correction Intelligente** : Grâce à un mécanisme d'auto-réflexion, le système évalue la pertinence des informations trouvées et la qualité de ses propres résumés pour garantir une réponse fiable et précise.
+- **Intelligent Auto-Correction**: Through a self-reflection mechanism, the system evaluates the relevance of found information and the quality of its own summaries to ensure reliable and accurate responses.
 
-- **Interface Utilisateur Intuitive** : L'application Streamlit permet une interaction simple : téléversez un fichier ou posez une question pour recevoir un résumé clair et direct.
+- **Intuitive User Interface**: The Streamlit application allows simple interaction: upload a file or ask a question to receive a clear and direct summary.
 
 ## 🏛️ Architecture
 
-L'architecture reste modulaire et robuste, mais elle est désormais optimisée pour la synthèse d'actualités.
+The architecture remains modular and robust, but is now optimized for news synthesis.
 
-### Interface Utilisateur (`streamlit_app.py`)
-- Permet à l'utilisateur de choisir son mode d'interaction : téléverser un document ou poser une question
-- Traite les fichiers téléversés ou transmet la question au moteur du graphe
-- Affiche le résumé final de manière conversationnelle
+### User Interface (`streamlit_app.py`)
+- Allows the user to choose their interaction mode: upload a document or ask a question
+- Processes uploaded files or transmits the question to the graph engine
+- Displays the final summary in a conversational manner
 
-### Moteur du Graphe (`graph.py`)
-- Orchestre le flux de travail avec LangGraph
-- La logique principale est de diriger la requête vers le traitement de document ou la recherche web
+### Graph Engine (`graph.py`)
+- Orchestrates the workflow with LangGraph
+- The main logic is to direct the request to document processing or web search
 
-### Nœuds et Chaînes LLM
-Les composants internes (récupération, évaluation, réécriture de requête) sont maintenant appliqués soit au contenu du document, soit aux résultats de la recherche web pour produire le meilleur résumé possible.
+### LLM Nodes and Chains
+The internal components (retrieval, evaluation, query rewriting) are now applied either to document content or web search results to produce the best possible summary.
 
-## 🤖 Modèles et Composants Techniques
+## 🤖 Models and Technical Components
 
-Le projet s'appuie sur une sélection de modèles et de technologies de pointe pour assurer sa performance.
+The project relies on a selection of cutting-edge models and technologies to ensure its performance.
 
-- **Fournisseur de LLM** : Groq
-- **Modèle utilisé** : `gemma2-9b-it` - Particulièrement efficace pour les tâches de synthèse, de génération et de compréhension de texte
-- **Modèle d'Embedding** : Hugging Face (`sentence-transformers/all-MiniLM-L6-v2`) - Utilisé pour vectoriser le contenu des documents téléversés
-- **Base de Données Vectorielle** : ChromaDB - Stocke les vecteurs des documents PDF pour permettre au système de "lire" et de comprendre le contenu
-- **API de Recherche Web** : Tavily AI - Le moteur de recherche pour trouver les actualités les plus récentes sur l'IA
+- **LLM Provider**: Groq
+- **Model Used**: `gemma2-9b-it` - Particularly effective for synthesis, generation, and text comprehension tasks
+- **Embedding Model**: Hugging Face (`sentence-transformers/all-MiniLM-L6-v2`) - Used to vectorize uploaded document content
+- **Vector Database**: ChromaDB - Stores PDF document vectors to allow the system to "read" and understand content
+- **Web Search API**: Tavily AI - The search engine for finding the latest AI news
 
-## ⚙️ Flux de Travail d'une Requête
+## ⚙️ Request Workflow
 
-1. **Entrée** : L'utilisateur arrive sur l'application Streamlit
+1. **Input**: The user arrives at the Streamlit application
 
-2. **Choix de l'Action** :
-   - **Cas 1 (Fichier fourni)** : L'utilisateur téléverse un document. Le système le découpe, le vectorise et le stocke. Le flux RAG interne est ensuite utilisé pour extraire et résumer les points clés du document.
-   - **Cas 2 (Question posée)** : L'utilisateur pose une question dans le champ de saisie. Le système active le nœud de recherche web (WEBSEARCH) pour collecter des articles et des informations pertinents.
+2. **Action Choice**:
+   - **Case 1 (File provided)**: The user uploads a document. The system chunks it, vectorizes it, and stores it. The internal RAG flow is then used to extract and summarize the document's key points.
+   - **Case 2 (Question asked)**: The user asks a question in the input field. The system activates the web search node (WEBSEARCH) to collect relevant articles and information.
 
-3. **Génération du Résumé** (`generate`) : Que les informations proviennent du document ou du web, le LLM gemma2-9b-it est chargé de synthétiser les informations en un résumé clair et concis.
+3. **Summary Generation** (`generate`): Whether information comes from the document or the web, the gemma2-9b-it LLM is responsible for synthesizing the information into a clear and concise summary.
 
-4. **Auto-Réflexion et Validation** : Le résumé est vérifié pour s'assurer qu'il est factuel (basé sur la source) et qu'il répond bien à la demande implicite de l'utilisateur.
+4. **Self-Reflection and Validation**: The summary is verified to ensure it is factual (based on the source) and properly responds to the user's implicit request.
 
-5. **Affichage** : Le résumé final est présenté à l'utilisateur dans l'interface de chat.
+5. **Display**: The final summary is presented to the user in the chat interface.
 
-## 🛠️ Installation et Utilisation
+## 🛠️ Installation and Usage
 
-### Prérequis
+### Prerequisites
 - Python 3.10+
-- Un gestionnaire de paquets comme pip
+- A package manager like pip
 
-### 1. Cloner le Dépôt
+### 1. Clone the Repository
 ```bash
-git clone <URL_DU_DEPOT>
-cd <NOM_DU_DEPOT>
+git clone <REPOSITORY_URL>
+cd <REPOSITORY_NAME>
 ```
 
-### 2. Installer les Dépendances
+### 2. Install Dependencies
 ```bash
 python -m venv venv
-source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Configurer les Variables d'Environnement
-Créez un fichier `.env` avec vos clés d'API :
+### 3. Configure Environment Variables
+Create a `.env` file with your API keys:
 ```env
 # .env
 GROQ_API_KEY="gsk_..."
 TAVILY_API_KEY="tvly-..."
 ```
 
-### 4. Lancer l'Application
+### 4. Launch the Application
 ```bash
 streamlit run streamlit_app.py
 ```
 
-Ouvrez votre navigateur à `http://localhost:8501`. Vous pouvez maintenant téléverser un document ou poser une question pour obtenir un résumé des actualités sur l'IA.
+Open your browser at `http://localhost:8501`. You can now upload a document or ask a question to get an AI news summary.
 
-## 📁 Structure du Projet
+## 📁 Project Structure
 ```
 NewsAI/
-├── streamlit_app.py    # Interface utilisateur Streamlit
-├── graph.py           # Moteur du graphe LangGraph
-├── requirements.txt   # Dépendances Python
-├── .env              # Variables d'environnement (à créer)
-└── README.md         # Ce fichier
+├── streamlit_app.py    # Streamlit user interface
+├── graph.py           # LangGraph graph engine
+├── requirements.txt   # Python dependencies
+├── .env              # Environment variables (to create)
+└── README.md         # This file
 ```
 
-## 🤝 Contribution
+## 🚀 Usage Examples
 
-Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou à soumettre une pull request.
+### Document Upload Mode
+1. Upload a PDF or TXT file containing AI-related content
+2. The system will automatically process and summarize the document
+3. Receive a concise summary of the key points
 
-## 📄 Licence
+### Question Mode
+1. Type a question about AI news or topics
+2. The system searches the web for relevant information
+3. Get a synthesized summary from multiple sources
 
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+## 🔧 Configuration
+
+### API Keys Required
+- **Groq API Key**: For LLM inference
+- **Tavily API Key**: For web search functionality
+
+### Supported File Formats
+- PDF documents
+- Plain text files (.txt)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to open an issue or submit a pull request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+
+## 🙏 Acknowledgments
+
+- [LangGraph](https://github.com/langchain-ai/langgraph) for the graph-based workflow
+- [Groq](https://groq.com/) for fast LLM inference
+- [Tavily](https://tavily.com/) for web search capabilities
+- [Streamlit](https://streamlit.io/) for the user interface
+- [NSKAI](https://www.nskai.org/) for the tranning bootcamp
 
 ---
 
-⭐ **N'oubliez pas de donner une étoile au projet si vous l'avez trouvé utile !**
+⭐ **Don't forget to star the project if you found it useful!**
