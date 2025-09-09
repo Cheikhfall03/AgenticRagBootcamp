@@ -49,6 +49,7 @@ The project relies on a selection of cutting-edge models and technologies to ens
 - **Embedding Model**: Hugging Face (`sentence-transformers/all-MiniLM-L6-v2`) - Used to vectorize uploaded document content
 - **Vector Database**: ChromaDB - Stores PDF document vectors to allow the system to "read" and understand content
 - **Web Search API**: Tavily AI - The search engine for finding the latest AI news
+- **LangSmith API**: LangSmith API key for tracing, monitoring, and debugging the application's execution flow
 
 ## ⚙️ Request Workflow
 
