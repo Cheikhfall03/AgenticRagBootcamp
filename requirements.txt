@@ -1,0 +1,23 @@
+# cœur LangChain (famille 0.2.x) + OpenAI SDK v1
+
+langchain-community
+langgraph
+langchain-groq
+langchain_experimental
+langchain_huggingface
+langchain-core
+langchain-huggingface
+langchain-tavily
+
+# stockage
+chromadb
+
+# runtime & datas
+pydantic
+python-dotenv
+beautifulsoup4
+requests
+wikipedia
+
+# interface
+streamlit

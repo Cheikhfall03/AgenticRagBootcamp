@@ -1,0 +1,5 @@
+RETRIEVE = "retriever"
+GRADE_DOCUMENTS = "grade"
+GENERATE = "generate"
+QUERY_REWRITE="query_rewrite"
+WEBSEARCH = "web_search"
