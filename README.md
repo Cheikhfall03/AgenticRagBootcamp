@@ -1,96 +1,14 @@
-NewsAI: Adaptive RAG for AI News Synthesis
-This project is a specialized platform for technological watch in artificial intelligence. Based on an advanced RAG (Retrieval-Augmented Generation) architecture, it uses LangGraph to create a dynamic workflow capable of synthesizing AI news from two distinct sources: PDF documents provided by the user or real-time web search.
+NewsAI: RAG Adaptatif pour la Synthèse d'Actualités IACe projet est une plateforme spécialisée dans la veille technologique sur l'intelligence artificielle. Basé sur une architecture RAG (Retrieval-Augmented Generation) avancée, il utilise LangGraph pour créer un flux de travail dynamique capable de synthétiser des actualités sur l'IA à partir de deux sources distinctes : des documents PDF fournis par l'utilisateur ou une recherche en temps réel sur le web.[Image d'un flux d'informations sur l'intelligence artificielle]🚀 Fonctionnalités ClésDouble Source d'Information : Obtenez des résumés d'actualités sur l'IA soit en téléversant un article (fichier .pdf ou .txt), soit en posant directement une question pour lancer une recherche sur le web.Synthèse Automatique : Le cœur du système est sa capacité à lire le contenu (qu'il provienne d'un fichier ou du web) et à en générer un résumé concis et pertinent.Recherche Web en Temps Réel : Si vous ne fournissez pas de document, le système utilise l'API Tavily pour rechercher les dernières informations sur le sujet de l'IA qui vous intéresse.Auto-Correction Intelligente : Grâce à un mécanisme d'auto-réflexion, le système évalue la pertinence des informations trouvées et la qualité de ses propres résumés pour garantir une réponse fiable et précise.Interface Utilisateur Intuitive : L'application Streamlit permet une interaction simple : téléversez un fichier ou posez une question pour recevoir un résumé clair et direct.🏛️ ArchitectureL'architecture reste modulaire et robuste, mais elle est désormais optimisée pour la synthèse d'actualités.Interface Utilisateur (streamlit_app.py)Permet à l'utilisateur de choisir son mode d'interaction : téléverser un document ou poser une question.Traite les fichiers téléversés ou transmet la question au moteur du graphe.Affiche le résumé final de manière conversationnelle.Moteur du Graphe (graph.py)Orchestre le flux de travail avec LangGraph. La logique principale est de diriger la requête vers le traitement de document ou la recherche web.Nœuds et Chaînes LLMLes composants internes (récupération, évaluation, réécriture de requête) sont maintenant appliqués soit au contenu du document, soit aux résultats de la recherche web pour produire le meilleur résumé possible.🤖 Modèles et Composants TechniquesLe projet s'appuie sur une sélection de modèles et de technologies de pointe pour assurer sa performance.Fournisseur de LLM : GroqModèle utilisé : gemma2-9b-it. Ce modèle est particulièrement efficace pour les tâches de synthèse, de génération et de compréhension de texte, ce qui le rend idéal pour cette application.Modèle d'Embedding : Hugging Face (sentence-transformers/all-MiniLM-L6-v2)Utilisé pour vectoriser le contenu des documents téléversés, permettant une recherche de pertinence efficace au sein du texte.Base de Données Vectorielle : ChromaDBStocke les vecteurs des documents PDF pour permettre au système de "lire" et de comprendre le contenu avant de le résumer.API de Recherche Web : Tavily AILe moteur de recherche pour trouver les actualités les plus récentes sur l'IA lorsque l'utilisateur ne fournit pas de document.⚙️ Flux de Travail d'une RequêteEntrée : L'utilisateur arrive sur l'application Streamlit.Choix de l'Action :Cas 1 (Fichier fourni) : L'utilisateur téléverse un document. Le système le découpe, le vectorise et le stocke. Le flux RAG interne est ensuite utilisé pour extraire et résumer les points clés du document.Cas 2 (Question posée) : L'utilisateur pose une question dans le champ de saisie. Le système active le nœud de recherche web (WEBSEARCH) pour collecter des articles et des informations pertinents.Génération du Résumé (generate) : Que les informations proviennent du document ou du web, le LLM gemma2-9b-it est chargé de synthétiser les informations en un résumé clair et concis.Auto-Réflexion et Validation : Le résumé est vérifié pour s'assurer qu'il est factuel (basé sur la source) et qu'il répond bien à la demande implicite de l'utilisateur (obtenir les dernières nouvelles sur un sujet).Affichage : Le résumé final est présenté à l'utilisateur dans l'interface de chat.🛠️ Installation et UtilisationPrérequisPython 3.10+Un gestionnaire de paquets comme pip1. Cloner le Dépôtgit clone <URL_DU_DEPOT>
+cd <NOM_DU_DEPOT>
 
-🚀 Key Features
-Dual Information Source: Get summaries of AI news either by uploading an article (.pdf or .txt file) or by directly asking a question to launch a web search.
-
-Automatic Synthesis: The core of the system is its ability to read content (whether from a file or the web) and generate a concise and relevant summary.
-
-Real-Time Web Search: If you do not provide a document, the system uses the Tavily API to search for the latest information on the AI topic you are interested in.
-
-Intelligent Self-Correction: Thanks to a self-reflection mechanism, the system evaluates the relevance of the information found and the quality of its own summaries to ensure a reliable and accurate response.
-
-Intuitive User Interface: The Streamlit application allows for simple interaction: upload a file or ask a question to receive a clear and direct summary.
-
-🏛️ Architecture
-The architecture remains modular and robust, but it is now optimized for news synthesis.
-
-User Interface (streamlit_app.py)
-
-Allows the user to choose their mode of interaction: upload a document or ask a question.
-
-Processes uploaded files or forwards the question to the graph engine.
-
-Displays the final summary in a conversational manner.
-
-Graph Engine (graph.py)
-
-Orchestrates the workflow with LangGraph. The main logic is to direct the query to either document processing or web search.
-
-Nodes and LLM Chains
-
-Internal components (retrieval, evaluation, query rewriting) are now applied to either the document content or web search results to produce the best possible summary.
-
-🤖 Models and Technical Components
-The project relies on a selection of cutting-edge models and technologies to ensure its performance.
-
-LLM Provider: Groq
-
-Model used: gemma2-9b-it. This model is particularly effective for synthesis, generation, and text comprehension tasks, making it ideal for this application.
-
-Embedding Model: Hugging Face (sentence-transformers/all-MiniLM-L6-v2)
-
-Used to vectorize the content of uploaded documents, allowing for effective relevance search within the text.
-
-Vector Database: ChromaDB
-
-Stores the vectors of PDF documents to allow the system to "read" and understand the content before summarizing it.
-
-Web Search API: Tavily AI
-
-The search engine for finding the latest news on AI when the user does not provide a document.
-
-⚙️ Request Workflow
-Input: The user arrives at the Streamlit application.
-
-Choice of Action:
-
-Case 1 (File provided): The user uploads a document. The system splits, vectorizes, and stores it. The internal RAG flow is then used to extract and summarize the key points of the document.
-
-Case 2 (Question asked): The user asks a question in the input field. The system activates the web search node (WEBSEARCH) to collect relevant articles and information.
-
-Summary Generation (generate): Whether the information comes from the document or the web, the gemma2-9b-it LLM is tasked with synthesizing the information into a clear and concise summary.
-
-Self-Reflection and Validation: The summary is checked to ensure it is factual (based on the source) and that it correctly addresses the user's implicit request (to get the latest news on a topic).
-
-Display: The final summary is presented to the user in the chat interface.
-
-🛠️ Installation and Usage
-Prerequisites
-Python 3.10+
-
-A package manager like pip
-
-1. Clone the Repository
-git clone <REPOSITORY_URL>
-cd <REPOSITORY_NAME>
-
-2. Install Dependencies
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+2. Installer les Dépendancespython -m venv venv
+source venv/bin/activate  # Sur Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-3. Configure Environment Variables
-Create a .env file with your API keys.
-
-# .env
+3. Configurer les Variables d'EnvironnementCréez un fichier .env avec vos clés d'API.# .env
 GROQ_API_KEY="gsk_..."
 TAVILY_API_KEY="tvly-..."
 
-4. Launch the Application
-streamlit run streamlit_app.py
+4. Lancer l'Applicationstreamlit run streamlit_app.py
 
-Open your browser to http://localhost:8501. You can now upload a document or ask a question to get a summary of AI news.
-
-5. Website
-https://agenticragbootcamp.streamlit.app/
+Ouvrez votre navigateur à http://localhost:8501. Vous pouvez maintenant téléverser un document ou poser une question pour obtenir un résumé des actualités sur l'IA.
