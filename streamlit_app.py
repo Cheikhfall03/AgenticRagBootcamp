@@ -1,5 +1,17 @@
-# streamlit_app.py
+# --- DEBUT DE LA CORRECTION POUR SQLITE ---
+# Ce bloc doit être au TOUT DEBUT du fichier, avant tous les autres imports.
+# Il force l'application à utiliser la version récente de sqlite3.
+try:
+    __import__('pysqlite3')
+    import sys
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+    print("✅ Successfully switched to pysqlite3-binary.")
+except ImportError:
+    print("⚠️ pysqlite3-binary not found, using default sqlite3. This may cause errors.")
+# --- FIN DE LA CORRECTION ---
 
+
+# streamlit_app.py
 import streamlit as st
 import time
 import os
@@ -10,6 +22,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 import shutil
 import logging
 import uuid
+from graph import rag_system # Assurez-vous que votre système RAG est importable
 
 # --- Configuration and Custom CSS ---
 st.set_page_config(
@@ -94,8 +107,6 @@ TEMP_DIR = "temp_documents"
 def load_rag_system():
     """Load the main RAG system once and cache it."""
     logging.info("--- Initializing or loading cached RAG System ---")
-    # This ensures the latest code from graph.py is used when the cache is cleared.
-    from graph import rag_system
     return rag_system
 
 def process_and_store_documents(uploaded_files):
@@ -140,7 +151,7 @@ def process_and_store_documents(uploaded_files):
 
 # --- System Initialization ---
 try:
-    rag_system = load_rag_system()
+    rag_system_instance = load_rag_system()
     system_status = "✅ System Operational"
     system_class = "status-success"
 except Exception as e:
@@ -242,12 +253,12 @@ if prompt := st.chat_input("💭 Ask your question..."):
             st.markdown('<div class="status-indicator status-info">📚 Using your documents...</div>', unsafe_allow_html=True)
             logging.info(f"✅ Retriever found in session state. Type: {type(retriever_obj)}. Invoking RAG.")
             with st.spinner("Processing with NewsAI..."):
-                response_data = rag_system.ask_question(prompt, retriever=retriever_obj)
+                response_data = rag_system_instance.ask_question(prompt, retriever=retriever_obj)
         else:
             st.markdown('<div class="status-indicator status-info">🌐 Using general knowledge...</div>', unsafe_allow_html=True)
             logging.warning("⚠️ No retriever in session state. Falling back to general mode.")
             with st.spinner("Analyzing with NewsAI..."):
-                response_data = rag_system.ask_question(prompt, retriever=None)
+                response_data = rag_system_instance.ask_question(prompt, retriever=None)
 
         if response_data.get("success", False):
             answer = response_data["answer"]
