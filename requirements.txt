@@ -19,5 +19,6 @@ beautifulsoup4
 requests
 wikipedia
 pypdf
+sentence-transformers
 # interface
 streamlit
