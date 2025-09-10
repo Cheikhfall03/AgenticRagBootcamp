@@ -249,10 +249,10 @@ rag_system_instance = AdaptiveRAGSystem()
 
 
 # Convenience function to be called from other modules like streamlit_app.py
-def ask_question(
+'''def ask_question(
     question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None
 ) -> Dict[str, Any]:
     """Convenience function to ask a question"""
     return rag_system_instance.ask_question(
         question, retriever=retriever, config=config
-    )
+    )'''
