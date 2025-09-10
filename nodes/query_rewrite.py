@@ -24,7 +24,7 @@ Provide your rewritten question in a structured format."""
 rewrite_prompt = ChatPromptTemplate.from_template(rewrite_prompt_template)
 
 # --- 3. Initialize the Language Model with Structured Output ---
-llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
+llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.0)
 structured_llm_rewriter = llm.with_structured_output(RewrittenQuestion)
 
 # --- 4. Define the Complete Query Rewriting Chain ---
