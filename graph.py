@@ -46,13 +46,11 @@ class AdaptiveRAGSystem:
         self.app = None
         self._setup_workflow()
     
+    # graph.py -> _retrieve_documents Method (CORRECTED)
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
-        """
-        Self-contained retrieve node logic.
-        """
-        print("---RETRIEVE DOCUMENTS---")
-        question = state["question"]
-        retriever = state.get("retriever")
+        # ...
+        # Get the retriever from the class instance instead of the state.
+        retriever = self.retriever 
         
         documents = []
         if retriever is not None:
