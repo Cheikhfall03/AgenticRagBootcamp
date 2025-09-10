@@ -25,6 +25,17 @@ llm = ChatGroq(
 # ---------------------------
 # 3. Prompt (inchangé)
 # ---------------------------
+# Correction à appliquer dans chains/hallucination_grader.py
+
+# ... autres imports ...
+from langchain_core.prompts import ChatPromptTemplate
+
+# ...
+
+# ---------------------------
+# 3. Prompt (CORRIGÉ)
+# ---------------------------
+# Assurez-vous que votre variable system ressemble exactement à ceci :
 system = """You are a grader assessing whether an LLM generation is grounded in / supported by a set of retrieved facts.
 
 - If the generation is fully supported by the retrieved facts, respond with: {"binary_score": true}
@@ -36,6 +47,8 @@ hallucination_prompt = ChatPromptTemplate.from_messages([
     ("system", system),
     ("user", "Retrieved facts:\n\n{documents}\n\nGeneration:\n\n{generation}")
 ])
+
+# ... le reste du fichier ...
 
 # ---------------------------
 # 4. Parser (inchangé)
