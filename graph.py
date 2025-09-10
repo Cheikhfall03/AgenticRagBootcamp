@@ -117,41 +117,66 @@ class AdaptiveRAGSystem:
                  print("⛔ Échec après réécriture. Passage à la recherche web comme dernier recours.")
                  return WEBSEARCH
     
+    # In graph.py
+
     def _grade_generation(self, state: GraphState) -> str:
-        """Évalue la génération pour les hallucinations et la pertinence."""
-        print("---NŒUD: ÉVALUATION DE LA GÉNÉRATION---")
+        """Evaluates the generation for hallucinations and relevance."""
+        print("---NODE: GRADE GENERATION---")
         question = state["question"]
         documents = state["documents"]
         generation = state["generation"]
-        
-        if not documents: # Si on vient du web search, on ne peut pas vérifier les hallucinations
-            print("⚠️ Impossible de vérifier les hallucinations (source web). On vérifie la pertinence de la réponse.")
-            score = answer_grader.invoke({"question": question, "generation": generation})
-            if getattr(score, "binary_score", False):
-                print("✅ Réponse jugée utile.")
+    
+        if not generation:
+            print("⛔ Generation is empty. Ending.")
+            return END
+    
+        # If the generation came from a web search, we can't do a hallucination check.
+        # We just check if the answer is useful.
+        if not documents:
+            print("⚠️ No documents to check for hallucinations (likely from web search).")
+            answer_score = answer_grader.invoke({"question": question, "generation": generation})
+            if getattr(answer_score, "binary_score", False):
+                print("✅ Web search answer deemed USEFUL.")
                 return END
             else:
-                print("⛔ Réponse jugée non utile. Fin.")
-                return END # On pourrait boucler, mais finissons ici pour éviter les boucles infinies.
-
+                print("⛔ Web search answer deemed NOT USEFUL.")
+                return END
+    
+        # --- FIX APPLIED HERE ---
+        # Combine and truncate the document context to prevent exceeding the model's token limit.
+        # This is the primary cause of the groq.BadRequestError.
+        MAX_CONTEXT_CHARS = 15000  # Approx. 3750 tokens, a safe limit for most models.
         docs_texts = [getattr(d, "page_content", str(d)) for d in documents]
-        hallucination_score = hallucination_grader.invoke({"documents": docs_texts, "generation": generation})
+        full_context = "\n\n---\n\n".join(docs_texts)
+    
+        if len(full_context) > MAX_CONTEXT_CHARS:
+            print(f"⚠️ Context length ({len(full_context)} chars) is too long. Truncating to {MAX_CONTEXT_CHARS}.")
+            full_context = full_context[:MAX_CONTEXT_CHARS]
         
+        print("---CHECKING FOR HALLUCINATIONS---")
+        # We now pass the potentially truncated context as a single item in a list.
+        hallucination_score = hallucination_grader.invoke({
+            "documents": [full_context],
+            "generation": generation
+        })
+    
+        # The rest of the logic proceeds as before.
         if not getattr(hallucination_score, "binary_score", False):
-            print("⛔ HALLUCINATION DÉTECTÉE ! Tentative de re-génération.")
-            if state["generation_count"] < 1:
-                return GENERATE # On re-génère une fois
+            print("⛔ DECISION: HALLUCINATION DETECTED. Re-trying generation.")
+            if state["generation_count"] < 1: # Allow one retry
+                return GENERATE
             else:
-                print("⛔ Échec de la re-génération. Fin.")
+                print("⛔ Failed to correct hallucination after retry. Ending.")
                 return END
                 
-        print("✅ Aucune hallucination détectée.")
+        print("✅ DECISION: GENERATION IS GROUNDED in documents.")
+        print("---CHECKING FOR ANSWER RELEVANCE---")
         answer_score = answer_grader.invoke({"question": question, "generation": generation})
         if getattr(answer_score, "binary_score", False):
-            print("✅ Réponse jugée utile.")
+            print("✅ Answer is RELEVANT and GROUNDED. Ending.")
             return END
         else:
-            print("⛔ Réponse jugée non utile, mais non hallucinatoire. Fin.")
+            print("⛔ Answer is NOT RELEVANT, but grounded. Ending.")
             return END
 
     def _setup_workflow(self):
