@@ -1,44 +1,55 @@
-# chains/retriever_grader.py (Version Corrigée)
+# chains/retriever_grader.py (Non-JSON Version)
 
-# 1. Imports (JsonOutputParser ajouté)
+# 1. Imports
 from pydantic import BaseModel, Field
 from langchain_groq import ChatGroq
-from langchain_core.output_parsers import StrOutputParser # Ajout de l'import
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda
 import os
 
-# 2. Modèle Pydantic (inchangé)
+# 2. Pydantic Model (This is still needed for the graph's state)
 class GradeDocuments(BaseModel):
-    """Score binaire pour la vérification de la pertinence des documents récupérés."""
+    """Binary score for document relevance check."""
     binary_score: bool = Field(
-        description="Le document est-il pertinent pour la question ? Mettre à True si pertinent, False sinon."
+        description="Is the document relevant to the question? True if relevant, False otherwise."
     )
 
-# 3. LLM (sans .with_structured_output)
+# 3. LLM
 llm = ChatGroq(
-    # Pour de meilleures performances, envisagez "llama3-8b-8192"
-    model="openai/gpt-oss-20b", 
+    model="llama3-8b-8192",
     temperature=0.0
 )
 
-# 4. Prompt (légèrement amélioré pour plus de clarté)
-system = """Vous êtes un évaluateur qui juge la pertinence d'un document récupéré par rapport à une question de l'utilisateur.
-    Votre objectif est de filtrer les documents non pertinents. Si le document contient des mots-clés ou un sens sémantique lié à la question, notez-le comme pertinent.
-    Répondez uniquement avec un objet JSON valide. Fournissez un score booléen : True si le document est pertinent, False sinon."""
+# 4. New prompt asking for 'yes' or 'no'
+system = """You are a strict relevance grader. Your goal is to determine if the document is useful for answering the user's question.
+
+Respond with only a single word: 'yes' or 'no'.
+- 'yes' if the document provides a direct answer or crucial context.
+- 'no' if it is off-topic or a passing mention."""
 
 grade_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system),
-        ("human", "Document Récupéré: \n\n {document} \n\n Question de l'utilisateur: {question}"),
+        ("human", "Retrieved document:\n\n{document}\n\nUser question: {question}"),
     ]
 )
 
-structured_llm_rewriter = llm.with_structured_output(GradeDocuments)
+# --- NEW CHAIN LOGIC (NON-JSON) ---
 
+# 5. Function to convert string "yes" or "no" to a boolean
+def text_to_boolean(text: str) -> bool:
+    return "yes" in text.lower()
 
-# 6. Chaîne Finale (CORRIGÉE avec .bind() et le parser)
+# 6. Final Chain
+# This chain now does the following:
+#   - Gets a string ("yes" or "no") from the LLM.
+#   - Converts that string to a boolean (True/False).
+#   - Wraps the boolean in the GradeDocuments model to match the graph's state.
 retrieval_grader = (
-    grade_prompt 
-    | structured_llm_rewriter
-    | StrOutputParser
+    grade_prompt
+    | llm
+    | StrOutputParser()
+    | RunnableLambda(text_to_boolean)
+    | RunnableLambda(lambda is_relevant: GradeDocuments(binary_score=is_relevant))
 )
