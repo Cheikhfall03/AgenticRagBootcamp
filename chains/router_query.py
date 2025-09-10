@@ -35,11 +35,12 @@ route_prompt = ChatPromptTemplate.from_messages(
 )
 
 # Parser JSON
-parser = JsonOutputParser(pydantic_object=RouteQuery)
+structured_llm_rewriter = llm.with_structured_output(RouteQuery)
+
 
 # Chaîne Finale (CORRIGÉE avec .bind() et le parser)
 question_router = (
     route_prompt 
-    | llm 
+    | lstructured_llm_rewriter
     | StrOutputParser
 )
