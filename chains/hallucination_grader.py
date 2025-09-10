@@ -4,7 +4,11 @@ from pydantic import BaseModel, Field
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
-
+llm = ChatGroq(
+    model="openai/gpt-oss-20b",
+    temperature=0.0,
+    api_key=os.getenv("GROQ_API_KEY")
+)
 class GradeHallucinations(BaseModel):
     """Binary score for hallucination present in generation answer."""
 
