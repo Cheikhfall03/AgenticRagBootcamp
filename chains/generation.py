@@ -1,5 +1,5 @@
 # chains/generation.py
-
+from langchain import hub
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_core.runnables import RunnablePassthrough
