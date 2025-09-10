@@ -31,7 +31,7 @@ def generate(state: GraphState):
     prompt = ChatPromptTemplate.from_template(prompt_template)
 
     # Initialize the LLM
-    llm = ChatGroq(model="gemma2-9b-it", temperature=0.0)
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
 
     # --- THIS IS THE FIX ---
     # The code now handles a list containing both Document objects and strings.
