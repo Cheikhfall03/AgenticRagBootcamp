@@ -155,10 +155,17 @@ class AdaptiveRAGSystem:
         
         print("---CHECKING FOR HALLUCINATIONS---")
         # We now pass the potentially truncated context as a single item in a list.
+        # Dans graph.py, ligne 158 environ
+        if isinstance(full_context, list):  
+            documents_text = "\n\n".join([doc.page_content for doc in full_context])  
+        else:  
+            documents_text = str(full_context)
+        
         hallucination_score = hallucination_grader.invoke({
-            "documents": [full_context],
+            "documents": documents_text,
             "generation": generation
         })
+
     
         # The rest of the logic proceeds as before.
         if not getattr(hallucination_score, "binary_score", False):
