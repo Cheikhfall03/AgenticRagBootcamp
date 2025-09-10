@@ -1,3 +1,5 @@
+# streamlit_app.py (Version Complète et Corrigée)
+
 # This block must be at the VERY BEGINNING of the file.
 try:
     __import__('pysqlite3')
@@ -186,38 +188,38 @@ if prompt := st.chat_input("💭 Ask your question..."):
         
         config = {"configurable": {"thread_id": st.session_state.thread_id}}
 
-        # This generator function filters the RAG stream for text chunks
+        # --- CORRECTED STREAMING LOGIC ---
         def stream_rag_response():
             initial_state = {
-    "question": prompt,
-    "generation": "",
-    "documents": [],
-    "file_paths": [], 
-    "web_search": False,
-    "query_rewrite_count": 0,
-    "generation_count": 0
-}
+                "question": prompt,
+                "generation": "",
+                "documents": [],
+                "file_paths": [], 
+                "web_search": False,
+                "query_rewrite_count": 0,
+                "generation_count": 0
+            }
             
-            # Lancer le stream avec l'état complet
-            for event in rag_system_instance.app.stream(
-                initial_state,
-                config=config
-            ):
+            # Iterate over the graph's event stream
+            for event in rag_system_instance.app.stream(initial_state, retriever=retriever_obj, config=config):
+                # The stream yields a dictionary: {node_name: node_output}
+                # We check if the 'generate' node is the key in the current event
+                if "generate" in event:
+                    # If so, we've reached the generation node.
+                    # Its output is a dictionary containing the "generation" key.
+                    generation_chunk = event["generate"].get("generation")
+                    if generation_chunk:
+                        # Yield the text chunk to st.write_stream
+                        yield generation_chunk
 
-            
-                # Check the keys of each event from the stream
-                if "generation" in event:
-                    # If the 'generation' key is present, yield its content
-                    chunk = event["generation"]
-                    if chunk:
-                        yield chunk
-        
         # Use st.write_stream to display the response as it arrives
         response_container = st.empty()
         full_response = response_container.write_stream(stream_rag_response)
         
         # Apply the chat message styling to the complete response
-        response_container.markdown(f'<div class="chat-message">{full_response}</div>', unsafe_allow_html=True)
-
-        # Add the final, complete response to the message history
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        if full_response:
+             response_container.markdown(f'<div class="chat-message">{full_response}</div>', unsafe_allow_html=True)
+             # Add the final, complete response to the message history
+             st.session_state.messages.append({"role": "assistant", "content": full_response})
+        else:
+             response_container.markdown(f'<div class="chat-message">Sorry, I was unable to generate a response. Please try rephrasing your question.</div>', unsafe_allow_html=True)
