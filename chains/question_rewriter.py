@@ -43,7 +43,7 @@ re_write_prompt = ChatPromptTemplate.from_messages(
 # 6. Chaîne Finale (CORRIGÉE avec .bind() et le parser)
 question_rewriter = (
     re_write_prompt 
-    | llm.bind(response_format={"type": "json_object"}) 
+    | structured_llm_rewriter = llm.with_structured_output(RewriteQuestion)
     | StrOutputParser
 
 )
