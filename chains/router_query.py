@@ -22,11 +22,9 @@ llm = ChatGroq(
     temperature=0.0
 )
 
-# Prompt (inchangé, il est bien formulé)
-system = """Vous êtes un expert pour router une question utilisateur vers une base de données vectorielle (vectorstore) ou une recherche web (web_search).
-La base de données vectorielle contient des documents sur les agents IA, l'ingénierie des prompts et les attaques adverses.
-Utilisez la 'vectorstore' pour les questions sur ces sujets. Pour tout le reste, utilisez 'web_search'."""
-
+system = """You are an expert at routing a user question to a vectorstore or web search.
+The vectorstore contains documents related to agents, prompt engineering, and adversarial attacks.
+Use the vectorstore for questions on these topics. For all else, use web-search."""
 route_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system),
@@ -34,7 +32,6 @@ route_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-# Parser JSON
 structured_llm_rewriter = llm.with_structured_output(RouteQuery)
 
 
