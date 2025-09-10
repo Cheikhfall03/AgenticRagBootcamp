@@ -232,12 +232,27 @@ if prompt := st.chat_input("💭 Posez votre question..."):
             logging.info(f"✅ Retriever trouvé dans session state. Type: {type(retriever_obj)}")
             
             # Test the retriever before using it
+            # Test the retriever before using it (try common retriever API names)
             try:
-                test_docs = retriever_obj.invoke("test")
-                logging.info(f"✅ Retriever test successful - can retrieve {len(test_docs)} documents")
+                # Prefer get_relevant_documents (LangChain), fallback to other names
+                if hasattr(retriever_obj, "get_relevant_documents"):
+                    test_docs = retriever_obj.get_relevant_documents("test")
+                elif hasattr(retriever_obj, "get_relevant_texts"):
+                    test_docs = retriever_obj.get_relevant_texts("test")
+                elif hasattr(retriever_obj, "retrieve"):
+                    test_docs = retriever_obj.retrieve("test")
+                elif hasattr(retriever_obj, "invoke"):
+                    test_docs = retriever_obj.invoke("test")
+                elif callable(retriever_obj):
+                    test_docs = retriever_obj("test")
+                else:
+                    raise AttributeError("No known retrieval method on retriever object.")
+                test_docs = list(test_docs) if test_docs is not None else []
+                logging.info(f"✅ Retriever test successful - got {len(test_docs)} items")
             except Exception as e:
                 logging.error(f"❌ Retriever test failed: {e}")
                 st.error(f"Erreur avec le retriever: {e}")
+
             
             with st.spinner("Traitement avec NewsAI..."):
                 response_data = rag_system_instance.ask_question(prompt, retriever=retriever_obj, config=config)
