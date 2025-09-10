@@ -173,26 +173,30 @@ class AdaptiveRAGSystem:
             return GENERATE
 
     # <-- MODIFIÉ : Ajout de 'config: Optional[Dict] = None' à la signature de la fonction
-    def ask_question(self, question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
-        """Ask a question and get an answer from the RAG system"""
+    def ask_question(self, question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None):
         if not self.app:
             raise Exception("RAG system not initialized")
-        
+            
+        # Attach the retriever to the instance for this call ONLY.
+        self.retriever = retriever
+    
         initial_state = {
             "question": question,
             "generation": "",
             "documents": [],
             "query_rewrite_count": 0,
             "generation_count": 0,
-            "retriever": retriever
+            # The 'retriever' key is REMOVED from the state.
         }
-        
+            
         print(f"--- Invoking RAG workflow for question: {question} ---")
         start_time = time.time()
         
         # <-- MODIFIÉ : Utilisation du paramètre 'config' passé à la fonction
         result = self.app.invoke(initial_state, config=config)
-        
+    
+        # Clean up the retriever after the call
+        self.retriever = None
         end_time = time.time()
         # Le print a été déplacé pour être plus logique
         print("--- Workflow invocation completed ---") 
