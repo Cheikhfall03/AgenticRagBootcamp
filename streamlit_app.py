@@ -261,13 +261,13 @@ if prompt := st.chat_input("💭 Ask your question..."):
             logging.info(f"✅ Retriever found in session state. Type: {type(retriever_obj)}. Invoking RAG.")
             with st.spinner("Processing with NewsAI..."):
                 # MODIFICATION : Ajout de 'config' à l'appel de la fonction
-                response_data = rag_system_instance.ask_questions(prompt, retriever=retriever_obj, config=config)
+                response_data = rag_system_instance.ask_question(prompt, retriever=retriever_obj, config=config)
         else:
             st.markdown('<div class="status-indicator status-info">🌐 Using general knowledge...</div>', unsafe_allow_html=True)
             logging.warning("⚠️ No retriever in session state. Falling back to general mode.")
             with st.spinner("Analyzing with NewsAI..."):
                 # MODIFICATION : Ajout de 'config' à l'appel de la fonction
-                response_data = rag_system_instance.ask_questions(prompt, retriever=None, config=config)
+                response_data = rag_system_instance.ask_question(prompt, retriever=None, config=config)
 
         if response_data.get("success", False):
             answer = response_data["answer"]
