@@ -15,8 +15,8 @@ from chains.router_query import question_router, RouteQuery
 from chains.hallucination_grader import hallucination_grader
 from nodes.generate import generate
 from nodes.query_rewrite import query_rewrite
-from nodes.web_search import web_search # Using the external node
-from Node_constant import RETRIEVE, GRADE_DOCUMENTS, GENERATE, WEBSEARCH, QUERY_REWRITE,ROUTE_QUESTION
+from nodes.web_search import web_search  # Using the external node
+from Node_constant import RETRIEVE, GRADE_DOCUMENTS, GENERATE, WEBSEARCH, QUERY_REWRITE, ROUTE_QUESTION
 from state import GraphState
 
 # --- Import de l'initialiseur du retriever par défaut ---
@@ -29,8 +29,10 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 if not TAVILY_API_KEY:
     raise ValueError("❌ TAVILY_API_KEY environment variable is not set! Add it to your .env file.")
 
+
 class AdaptiveRAGSystem:
     """Système RAG modulaire, robuste et centralisé."""
+
     def __init__(self):
         """Initialise le système RAG avec un retriever par défaut."""
         self.workflow = StateGraph(GraphState)
@@ -47,30 +49,28 @@ class AdaptiveRAGSystem:
         self.app = self.workflow.compile(checkpointer=memory)
         print("✅ Graphe LangGraph compilé avec succès.")
 
-     def _route_question(self, state: GraphState) -> str:
-         print("---NŒUD: ROUTAGE DE LA QUESTION---")
-         question = state["question"]
-         try:
-           source: RouteQuery = question_router.invoke({"question": question})
-           print(f"📌 Décision de routage brute: {source}")
-        
-                # Toujours renvoyer une string simple
-           if str(source.datasource).strip().lower() == WEBSEARCH:
-               print("➡️ Décision: La question nécessite une recherche web.")
-               return WEBSEARCH   # ✅ string
-               elif str(source.datasource).strip().lower() == RETRIEVE:
-                   print("➡️ Décision: La question concerne les documents fournis.")
-                   return RETRIEVE    # ✅ string
-               else:
-                   print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
-                   return RETRIEVE
-        
-         except Exception as e:
+    def _route_question(self, state: GraphState) -> str:
+        print("---NŒUD: ROUTAGE DE LA QUESTION---")
+        question = state["question"]
+        try:
+            source: RouteQuery = question_router.invoke({"question": question})
+            print(f"📌 Décision de routage brute: {source}")
+
+            # Toujours renvoyer une string simple
+            if str(source.datasource).strip().lower() == WEBSEARCH:
+                print("➡️ Décision: La question nécessite une recherche web.")
+                return WEBSEARCH
+            elif str(source.datasource).strip().lower() == RETRIEVE:
+                print("➡️ Décision: La question concerne les documents fournis.")
+                return RETRIEVE
+            else:
+                print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
+                return RETRIEVE
+
+        except Exception as e:
             print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
             print("➡️ Fallback: récupération de documents.")
             return RETRIEVE
- ✅ string
-
 
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
         print("---NŒUD: RÉCUPÉRATION DE DOCUMENTS---")
@@ -121,9 +121,6 @@ class AdaptiveRAGSystem:
                 print("⛔ Échec après réécriture. Passage à la recherche web comme dernier recours.")
                 return WEBSEARCH
 
-    # The _web_search method has been removed from the class.
-    # The graph will now use the imported web_search function from nodes/web_search.py
-
     def _grade_generation(self, state: GraphState) -> str:
         print("---NŒUD: ÉVALUATION DE LA GÉNÉRATION---")
         question = state["question"]
@@ -132,9 +129,8 @@ class AdaptiveRAGSystem:
         if not generation:
             print("⛔ Génération vide. Fin.")
             return END
-        
+
         # Si la génération provient d'une recherche web, seuls les documents du web sont présents
-        # C'est un bon indicateur pour savoir si le check d'hallucination est pertinent
         is_web_search_result = all('source' in doc.metadata for doc in documents)
 
         if is_web_search_result:
@@ -146,7 +142,9 @@ class AdaptiveRAGSystem:
         docs_texts = [getattr(d, "page_content", str(d)) for d in documents]
         full_context = "\n\n---\n\n".join(docs_texts)
         try:
-            hallucination_score = hallucination_grader.invoke({"documents": full_context[:10000], "generation": generation})
+            hallucination_score = hallucination_grader.invoke(
+                {"documents": full_context[:10000], "generation": generation}
+            )
             if not getattr(hallucination_score, "binary_score", False):
                 print("⛔ HALLUCINATION détectée. Tentative de re-génération.")
                 return GENERATE if state["generation_count"] < 1 else END
@@ -163,7 +161,7 @@ class AdaptiveRAGSystem:
         self.workflow.add_node(RETRIEVE, self._retrieve_documents)
         self.workflow.add_node(GRADE_DOCUMENTS, self._grade_documents)
         self.workflow.add_node(QUERY_REWRITE, query_rewrite)
-        self.workflow.add_node(WEBSEARCH, web_search) # Pointing to the imported function
+        self.workflow.add_node(WEBSEARCH, web_search)  # Pointing to the imported function
         self.workflow.add_node(GENERATE, generate)
         self.workflow.add_node(ROUTE_QUESTION, self._route_question)
 
@@ -171,13 +169,15 @@ class AdaptiveRAGSystem:
         self.workflow.set_entry_point(ROUTE_QUESTION)
 
         # Connexions conditionnelles depuis le routeur
-        workflow.add_conditional_edges(
-    "route_question",
-    self._route_question,
-    {WEBSEARCH: WEBSEARCH, RETRIEVE: RETRIEVE}
-)
+        self.workflow.add_conditional_edges(
+            ROUTE_QUESTION,
+            self._route_question,
+            {
+                WEBSEARCH: WEBSEARCH,
+                RETRIEVE: RETRIEVE
+            }
+        )
 
-        
         self.workflow.add_edge(RETRIEVE, GRADE_DOCUMENTS)
         self.workflow.add_edge(QUERY_REWRITE, RETRIEVE)
         self.workflow.add_edge(WEBSEARCH, GENERATE)
@@ -204,9 +204,9 @@ class AdaptiveRAGSystem:
         if not self.app:
             print("Erreur: Le système RAG n'est pas compilé.")
             return iter([])
-        
+
         self.current_retriever = retriever if retriever is not None else self.default_retriever
-        
+
         initial_state = {
             "question": question,
             "query_rewrite_count": 0,
@@ -217,6 +217,6 @@ class AdaptiveRAGSystem:
         print(f"--- Lancement du graphe pour la question: '{question}' ---")
         return self.app.stream(initial_state, config=config)
 
+
 # --- Instance unique (Singleton) pour l'application ---
 rag_system = AdaptiveRAGSystem()
-
