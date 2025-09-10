@@ -24,3 +24,4 @@ class GraphState(TypedDict):
     web_search: bool
     query_rewrite_count: int
     generation_count: int
+    route: str
