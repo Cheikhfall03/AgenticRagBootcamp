@@ -3,7 +3,7 @@
 from typing import Literal
 from pydantic import BaseModel, Field
 from langchain_groq import ChatGroq
-from langchain_core.output_parsers import JsonOutputParser # Ajout de l'import
+from langchain_core.output_parsers import StrOutputParser # Ajout de l'import
 from langchain_core.prompts import ChatPromptTemplate
 import os
 
