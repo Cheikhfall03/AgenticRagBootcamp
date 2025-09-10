@@ -17,6 +17,7 @@ from typing import Dict, Any, Optional, List
 import time
 import traceback
 from typing_extensions import TypedDict
+from langgraph.checkpoint.memory import MemorySaver # Ajout de l'importation pour MemorySaver
 
 # Load environment variables
 load_dotenv()
@@ -125,7 +126,8 @@ class AdaptiveRAGSystem:
         )
         
         print("--- Compiling LangGraph workflow ---")
-        self.app = self.workflow.compile()
+        memory = MemorySaver() # Création de l'instance de MemorySaver
+        self.app = self.workflow.compile(checkpointer=memory) # Ajout du checkpointer à la compilation
         print("--- Workflow compiled successfully ---")
 
     def _grade_generation_grounded_in_documents_and_question(self, state: GraphState) -> str:
@@ -186,9 +188,11 @@ class AdaptiveRAGSystem:
         
         print(f"--- Invoking RAG workflow for question: {question} ---")
         start_time = time.time()
-        result = self.app.invoke(initial_state)
+        # La configuration pour la conversation doit être ajoutée ici
+        config = {"configurable": {"thread_id": "1"}} 
+        result = self.app.invoke(initial_state, config=config)
         end_time = time.time()
-        print("--- Workflow completed successfully ---")
+        print("--- Workflow compiled successfully ---")
         
         return {
             "success": True,
@@ -206,4 +210,3 @@ rag_system = AdaptiveRAGSystem()
 def ask_question(question: str, retriever: Optional[Any] = None) -> Dict[str, Any]:
     """Convenience function to ask a question"""
     return rag_system.ask_question(question, retriever=retriever)
-
