@@ -1,38 +1,50 @@
-# ### Hallucination Grader ###
+# hallucination_grader.py
 
-# 1. Imports
 from pydantic import BaseModel, Field
-from langchain_groq import ChatGroq
+from langchain import hub
+from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_groq import ChatGroq
 import os
-# 2. Data model (Corrected to use a boolean for a reliable binary score)
-class GradeHallucinations(BaseModel):
-    """Binary score for hallucination present in the generation."""
 
+# ---------------------------
+# 1. Définition du schéma Pydantic
+# ---------------------------
+class GradeHallucinations(BaseModel):
+    """Binaire : évalue si la génération est fidèle aux documents"""
     binary_score: bool = Field(
-        description="Is the answer grounded in the facts? Set to True if grounded, False otherwise."
+        description="True si la génération est soutenue par les faits, False si c'est une hallucination"
     )
 
-# 3. LLM with structured output
-# Using a specific model for grading is a good practice.
+# ---------------------------
+# 2. Chargement du LLM
+# ---------------------------
 llm = ChatGroq(
     model="openai/gpt-oss-20b",
-    temperature=0.0,
-   api_key=os.getenv("GROQ_API_KEY")
+    temperature=0
 )
-structured_llm_grader = llm.with_structured_output(GradeHallucinations)
 
-# 4. Prompt (Corrected to ask for a boolean score)
+# ---------------------------
+# 3. Prompt clair avec contrainte JSON
+# ---------------------------
 system = """You are a grader assessing whether an LLM generation is grounded in / supported by a set of retrieved facts.
-     Provide a boolean score. Set the score to True if the answer is grounded in the set of facts, and False otherwise."""
 
-hallucination_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", system),
-        ("human", "Set of facts: \n\n {documents} \n\n LLM generation: {generation}"),
-    ]
-)
+- If the generation is fully supported by the retrieved facts, respond with: {"binary_score": true}
+- If the generation contains hallucinations or is not supported, respond with: {"binary_score": false}
+Only output valid JSON, nothing else.
+"""
 
-# 5. Final chain
-hallucination_grader = hallucination_prompt | structured_llm_grader
+hallucination_prompt = ChatPromptTemplate.from_messages([
+    ("system", system),
+    ("user", "Retrieved facts:\n\n{documents}\n\nGeneration:\n\n{generation}")
+])
 
+# ---------------------------
+# 4. Parser JSON fiable
+# ---------------------------
+parser = JsonOutputParser(pydantic_object=GradeHallucinations)
+
+# ---------------------------
+# 5. Chaîne finale (prompt -> llm -> parser)
+# ---------------------------
+hallucination_grader = hallucination_prompt | llm | parser
