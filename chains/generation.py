@@ -13,25 +13,6 @@ llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
-# Prompt — expects {context} and {question}
-prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            "You are an assistant for question-answering tasks. "
-            "Use the following pieces of retrieved context to answer the question. "
-            "If you don't know the answer, just say that you don't know. "
-            "Keep the answer concise.\n\n"
-            "Context:\n{context}"
-        ),
-        ("human", "{question}"),
-    ]
-)
+prompt = hub.pull("rlm/rag-prompt")
 
-# Simple RAG chain — returns string
-rag_chain = (
-    {"context": RunnablePassthrough(), "question": RunnablePassthrough()}
-    | prompt
-    | llm
-    | StrOutputParser()  # ← Returns string, not structured model
-)
+generation_chain = prompt | llm | StrOutputParser()
