@@ -188,10 +188,18 @@ if prompt := st.chat_input("💭 Ask your question..."):
 
         # This generator function filters the RAG stream for text chunks
         def stream_rag_response():
+            initial_state = {
+                "question": prompt,
+                "query_rewrite_count": 0,
+                "generation_count": 0
+            }
+            
+            # Lancer le stream avec l'état complet
             for event in rag_system_instance.app.stream(
-                {"question": prompt}, # Pass only the question
+                initial_state,
                 config=config
             ):
+
             
                 # Check the keys of each event from the stream
                 if "generation" in event:
