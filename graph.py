@@ -68,10 +68,10 @@ class AdaptiveRAGSystem:
                 print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
                 return {"route": RETRIEVE}
 
-    except Exception as e:
-        print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
-        print("➡️ Fallback: récupération de documents.")
-        return {"route": RETRIEVE}
+        except Exception as e:
+            print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
+            print("➡️ Fallback: récupération de documents.")
+            return {"route": RETRIEVE}
 
         except Exception as e:
             print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
