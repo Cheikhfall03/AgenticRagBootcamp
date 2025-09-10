@@ -15,7 +15,7 @@ from chains.router_query import question_router, RouteQuery
 from chains.hallucination_grader import hallucination_grader
 from nodes.generate import generate
 from nodes.query_rewrite import query_rewrite
-from nodes.web_search import web_search  # Using the external node
+from nodes.web_search import web_search
 from Node_constant import RETRIEVE, GRADE_DOCUMENTS, GENERATE, WEBSEARCH, QUERY_REWRITE, ROUTE_QUESTION
 from state import GraphState
 
@@ -24,17 +24,13 @@ from ingestion.ingestion import initialize_default_retriever
 
 load_dotenv()
 
-# Validate Tavily API Key at module level
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 if not TAVILY_API_KEY:
     raise ValueError("❌ TAVILY_API_KEY environment variable is not set! Add it to your .env file.")
 
 
 class AdaptiveRAGSystem:
-    """Système RAG modulaire, robuste et centralisé."""
-
     def __init__(self):
-        """Initialise le système RAG avec un retriever par défaut."""
         self.workflow = StateGraph(GraphState)
         try:
             self.default_retriever = initialize_default_retriever()
@@ -42,55 +38,57 @@ class AdaptiveRAGSystem:
             print(f"❌ ERREUR CRITIQUE: Impossible d'initialiser le retriever par défaut: {e}")
             self.default_retriever = None
 
-        self.current_retriever = self.default_retriever
-        # self.tavily_tool is no longer needed here, it's in nodes/web_search.py
+        # ### SUPPRIMÉ ### : self.current_retriever n'est plus nécessaire ici.
         self._setup_workflow()
         memory = MemorySaver()
         self.app = self.workflow.compile(checkpointer=memory)
         print("✅ Graphe LangGraph compilé avec succès.")
 
     def _route_question(self, state: GraphState) -> Dict[str, Any]:
+        # ... (Pas de changement dans cette méthode)
         print("---NŒUD: ROUTAGE DE LA QUESTION---")
         question = state["question"]
         try:
             source: RouteQuery = question_router.invoke({"question": question})
             print(f"📌 Décision de routage brute: {source}")
-    
             datasource = str(source.datasource).strip().lower()
-    
+            
             if datasource == WEBSEARCH:
                 print("➡️ Décision: La question nécessite une recherche web.")
-                return {"next": WEBSEARCH, "question": question}
-    
+                return {"next": WEBSEARCH}
             elif datasource == RETRIEVE:
                 print("➡️ Décision: La question concerne les documents fournis.")
-                return {"next": RETRIEVE, "question": question}
-    
+                return {"next": RETRIEVE}
             else:
                 print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
-                return {"next": RETRIEVE, "question": question}
-    
+                return {"next": RETRIEVE}
         except Exception as e:
             print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
             print("➡️ Fallback: récupération de documents.")
-            return {"next": RETRIEVE, "question": question}
-
+            return {"next": RETRIEVE}
 
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
         print("---NŒUD: RÉCUPÉRATION DE DOCUMENTS---")
         question = state["question"]
-        if self.current_retriever is None:
-            print("⚠️ Aucun retriever n'est disponible. Retourne une liste vide.")
-            return {"documents": []}
+        
+        # ### MODIFIÉ ### : Récupérer le retriever depuis l'état du graphe
+        retriever = state.get("retriever")
+
+        if retriever is None:
+            print("⚠️ Aucun retriever n'est disponible dans l'état du graphe. Retourne une liste vide.")
+            return {"documents": [], "question": question}
+        
         try:
-            print(f"🔎 Utilisation du retriever: {type(self.current_retriever)}")
-            documents = self.current_retriever.invoke(question)
+            print(f"🔎 Utilisation du retriever: {type(retriever)}")
+            # ### MODIFIÉ ### : Utiliser le retriever de l'état
+            documents = retriever.invoke(question)
             print(f"✅ {len(documents)} document(s) récupéré(s).")
             return {"documents": documents, "question": question}
         except Exception as e:
             print(f"❌ Erreur lors de la récupération de documents: {e}")
             return {"documents": [], "question": question}
 
+    # ... (Pas de changement dans _grade_documents, _decide_to_generate, _grade_generation)
     def _grade_documents(self, state: GraphState) -> Dict[str, Any]:
         print("---NŒUD: ÉVALUATION DE LA PERTINENCE DES DOCUMENTS---")
         question = state["question"]
@@ -134,8 +132,7 @@ class AdaptiveRAGSystem:
             print("⛔ Génération vide. Fin.")
             return END
 
-        # Si la génération provient d'une recherche web, seuls les documents du web sont présents
-        is_web_search_result = all('source' in doc.metadata for doc in documents)
+        is_web_search_result = all('source' in doc.metadata for doc in documents if hasattr(doc, 'metadata'))
 
         if is_web_search_result:
             print("⚠️ Réponse issue du web → Vérification de l'utilité.")
@@ -161,47 +158,31 @@ class AdaptiveRAGSystem:
         return END if getattr(answer_score, "binary_score", False) else END
 
     def _setup_workflow(self):
-        """Construit le graphe avec le routage intelligent en point d'entrée."""
+        # ... (Pas de changement dans cette méthode)
         self.workflow.add_node(RETRIEVE, self._retrieve_documents)
         self.workflow.add_node(GRADE_DOCUMENTS, self._grade_documents)
         self.workflow.add_node(QUERY_REWRITE, query_rewrite)
-        self.workflow.add_node(WEBSEARCH, web_search)  # Pointing to the imported function
+        self.workflow.add_node(WEBSEARCH, web_search)
         self.workflow.add_node(GENERATE, generate)
         self.workflow.add_node(ROUTE_QUESTION, self._route_question)
-
-        # Le point d'entrée est maintenant le routeur
         self.workflow.set_entry_point(ROUTE_QUESTION)
-
-        # Connexions conditionnelles depuis le routeur
         self.workflow.add_conditional_edges(
-    ROUTE_QUESTION,
-    lambda state: state["next"],   # <- Utiliser la clé "next"
-    {
-        WEBSEARCH: WEBSEARCH,
-        RETRIEVE: RETRIEVE
-    }
-)
-
+            ROUTE_QUESTION,
+            lambda state: state["next"],
+            {WEBSEARCH: WEBSEARCH, RETRIEVE: RETRIEVE}
+        )
         self.workflow.add_edge(RETRIEVE, GRADE_DOCUMENTS)
         self.workflow.add_edge(QUERY_REWRITE, RETRIEVE)
         self.workflow.add_edge(WEBSEARCH, GENERATE)
-
         self.workflow.add_conditional_edges(
             GRADE_DOCUMENTS,
             self._decide_to_generate,
-            {
-                GENERATE: GENERATE,
-                QUERY_REWRITE: QUERY_REWRITE,
-                WEBSEARCH: WEBSEARCH
-            }
+            {GENERATE: GENERATE, QUERY_REWRITE: QUERY_REWRITE, WEBSEARCH: WEBSEARCH}
         )
         self.workflow.add_conditional_edges(
             GENERATE,
             self._grade_generation,
-            {
-                GENERATE: GENERATE,
-                END: END
-            }
+            {GENERATE: GENERATE, END: END}
         )
 
     def run(self, question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Iterator[Dict[str, Any]]:
@@ -209,18 +190,21 @@ class AdaptiveRAGSystem:
             print("Erreur: Le système RAG n'est pas compilé.")
             return iter([])
 
-        self.current_retriever = retriever if retriever is not None else self.default_retriever
-
+        # ### MODIFIÉ ### : Déterminer quel retriever utiliser pour cet appel spécifique
+        active_retriever = retriever if retriever is not None else self.default_retriever
+        
+        # ### MODIFIÉ ### : Injecter le retriever actif dans l'état initial du graphe
         initial_state = {
             "question": question,
             "query_rewrite_count": 0,
             "generation_count": 0,
             "documents": [],
-            "generation": ""
+            "generation": "",
+            "retriever": active_retriever  # <-- LA LIGNE CLÉ
         }
+        
         print(f"--- Lancement du graphe pour la question: '{question}' ---")
         return self.app.stream(initial_state, config=config)
-
 
 # --- Instance unique (Singleton) pour l'application ---
 rag_system = AdaptiveRAGSystem()
