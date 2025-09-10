@@ -15,25 +15,11 @@ from nodes.query_rewrite import query_rewrite
 from typing import Dict, Any, Optional, List
 import time
 import traceback
-from typing_extensions import TypedDict
 from langgraph.checkpoint.memory import MemorySaver
+from state import GraphState  # Import GraphState from state.py
 
 # Load environment variables
 load_dotenv()
-
-# --- SELF-CONTAINED STATE AND NODES ---
-
-class GraphState(TypedDict):
-    """
-    Represents the state of our graph. 
-    Note: retriever is NOT included here to avoid serialization issues
-    """
-    question: str
-    generation: str
-    documents: List[Any]
-    query_rewrite_count: int
-    generation_count: int
-    # retriever removed from state to prevent serialization issues
 
 class AdaptiveRAGSystem:
     """
@@ -185,9 +171,10 @@ class AdaptiveRAGSystem:
             "question": question,
             "generation": "",
             "documents": [],
+            "file_paths": [],
+            "web_search": False,
             "query_rewrite_count": 0,
             "generation_count": 0,
-            # retriever removed from initial state
         }
         
         print(f"--- Invoking RAG workflow for question: {question} ---")
