@@ -39,12 +39,12 @@ re_write_prompt = ChatPromptTemplate.from_messages(
 )
 
 # 5. Parser JSON
-parser = JsonOutputParser(pydantic_object=RewriteQuestion)
 
 # 6. Chaîne Finale (CORRIGÉE avec .bind() et le parser)
 question_rewriter = (
     re_write_prompt 
     | llm.bind(response_format={"type": "json_object"}) 
-    | parser
+    | StrOutputParser
+
 )
 
