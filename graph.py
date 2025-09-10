@@ -16,7 +16,7 @@ from chains.hallucination_grader import hallucination_grader
 from nodes.generate import generate
 from nodes.query_rewrite import query_rewrite
 from nodes.web_search import web_search # Using the external node
-from Node_constant import RETRIEVE, GRADE_DOCUMENTS, GENERATE, WEBSEARCH, QUERY_REWRITE, ROUTE_QUESTION
+from Node_constant import RETRIEVE, GRADE_DOCUMENTS, GENERATE, WEBSEARCH, QUERY_REWRITE
 from state import GraphState
 
 # --- Import de l'initialiseur du retriever par défaut ---
