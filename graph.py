@@ -1,4 +1,5 @@
-# graph.py (Version Corrigée)
+# graph.py (Version Finalisée & Nettoyée)
+
 import time
 import traceback
 from typing import Dict, Any, Optional
@@ -22,61 +23,58 @@ from ingestion.ingestion import initialize_default_retriever
 
 load_dotenv()
 
+
 class AdaptiveRAGSystem:
     """Système RAG modulaire, robuste et centralisé."""
-    
+
     def __init__(self):
         """Initialise le système RAG avec un retriever par défaut."""
         self.workflow = StateGraph(GraphState)
-        
+
         # --- Initialisation du retriever par défaut ---
         try:
             self.default_retriever = initialize_default_retriever()
         except Exception as e:
             print(f"❌ ERREUR CRITIQUE: Impossible d'initialiser le retriever par défaut: {e}")
             self.default_retriever = None
-            
+
         self.current_retriever = self.default_retriever
-        
+
         # --- Construction du graphe ---
         self._setup_workflow()
-        
+
         # --- Compilation du graphe ---
         memory = MemorySaver()
         self.app = self.workflow.compile(checkpointer=memory)
         print("✅ Graphe LangGraph compilé avec succès.")
 
+    # --- Nœud : récupération des documents ---
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
-        """
-        Récupère les documents en utilisant le retriever actuellement actif (soit par défaut, soit personnalisé).
-        Ce nœud est maintenant interne à la classe et fiable.
-        """
         print("---NŒUD: RÉCUPÉRATION DE DOCUMENTS---")
         question = state["question"]
-        
+
         if self.current_retriever is None:
-            print("⚠️ Aucun retriever n'est disponible. Retourne une liste vide.")
+            print("⚠️ Aucun retriever disponible. Retourne une liste vide.")
             return {"documents": []}
-            
+
         try:
             print(f"🔎 Utilisation du retriever: {type(self.current_retriever)}")
             documents = self.current_retriever.invoke(question)
             print(f"✅ {len(documents)} document(s) récupéré(s).")
             return {"documents": documents}
         except Exception as e:
-            print(f"❌ Erreur lors de la récupération de documents: {e}")
+            print(f"❌ Erreur lors de la récupération: {e}")
             return {"documents": []}
 
-    # ... (les autres fonctions du graphe comme _grade_documents, etc. restent les mêmes) ...
-
+    # --- Nœud : évaluation de pertinence des documents ---
     def _grade_documents(self, state: GraphState) -> Dict[str, Any]:
-        print("---NŒUD: ÉVALUATION DE LA PERTINENCE DES DOCUMENTS---")
+        print("---NŒUD: ÉVALUATION PERTINENCE DOCUMENTS---")
         question = state["question"]
         documents = state["documents"]
-        
+
         if not documents:
             return {"documents": []}
-        
+
         filtered_docs = []
         for d in documents:
             try:
@@ -88,174 +86,136 @@ class AdaptiveRAGSystem:
                 else:
                     print("⛔ Document non pertinent.")
             except Exception as e:
-                print(f"⚠️ Erreur d'évaluation, inclusion par défaut: {e}")
-                filtered_docs.append(d) # En cas d'erreur, on garde le doc par sécurité
-                
+                print(f"⚠️ Erreur d'évaluation → inclusion par défaut: {e}")
+                filtered_docs.append(d)
+
         return {"documents": filtered_docs}
-    
+
+    # --- Nœud : routage de la question ---
     def _route_question(self, state: GraphState) -> str:
-        """
-        Route toujours vers la récupération de documents, car nous avons toujours un retriever.
-        """
-        print("---NŒUD: ROUTAGE DE LA QUESTION---")
-        print("➡️ Toujours router vers RETRIEVE car un retriever (défaut ou custom) est toujours disponible.")
+        print("---NŒUD: ROUTAGE QUESTION---")
+        print("➡️ Toujours router vers RETRIEVE (retriever dispo).")
         return RETRIEVE
 
+    # --- Nœud : décision après récupération ---
     def _decide_to_generate(self, state: GraphState) -> str:
-        """
-        Décide s'il faut générer une réponse, réécrire la question, ou passer à la recherche web.
-        """
         print("---NŒUD: DÉCISION POST-RÉCUPÉRATION---")
         if state["documents"]:
-            print("✅ Documents pertinents trouvés. Passage à la génération.")
+            print("✅ Documents trouvés → Génération.")
             return GENERATE
-        else:
-            if state["query_rewrite_count"] < 1: # On autorise 1 réécriture
-                 print("⛔ Aucun document pertinent. Tentative de réécriture de la question.")
-                 return QUERY_REWRITE
-            else:
-                 print("⛔ Échec après réécriture. Passage à la recherche web comme dernier recours.")
-                 return WEBSEARCH
-    
-    # In graph.py
+        if state["query_rewrite_count"] < 1:
+            print("⛔ Aucun doc pertinent → Réécriture de la question.")
+            return QUERY_REWRITE
+        print("⛔ Échec après réécriture → Recherche Web.")
+        return WEBSEARCH
 
+    # --- Nœud : évaluation de la génération ---
     def _grade_generation(self, state: GraphState) -> str:
-        """Evaluates the generation for hallucinations and relevance."""
-        print("---NODE: GRADE GENERATION---")
+        print("---NŒUD: ÉVALUATION GÉNÉRATION---")
         question = state["question"]
         documents = state["documents"]
         generation = state["generation"]
-    
+
         if not generation:
-            print("⛔ Generation is empty. Ending.")
+            print("⛔ Generation vide. Fin.")
             return END
-    
-        # If the generation came from a web search, we can't do a hallucination check.
-        # We just check if the answer is useful.
+
+        # Cas Web Search → pas de check hallucination
         if not documents:
-            print("⚠️ No documents to check for hallucinations (likely from web search).")
+            print("⚠️ Réponse issue du web → Vérification utilité.")
             answer_score = answer_grader.invoke({"question": question, "generation": generation})
             if getattr(answer_score, "binary_score", False):
-                print("✅ Web search answer deemed USEFUL.")
-                return END
+                print("✅ Réponse Web UTILE.")
             else:
-                print("⛔ Web search answer deemed NOT USEFUL.")
-                return END
-    
-        # --- FIX APPLIED HERE ---
-        # Combine and truncate the document context to prevent exceeding the model's token limit.
-        # This is the primary cause of the groq.BadRequestError.
-        MAX_CONTEXT_CHARS = 15000  # Approx. 3750 tokens, a safe limit for most models.
+                print("⛔ Réponse Web NON UTILE.")
+            return END
+
+        # Préparation du contexte
+        MAX_CONTEXT_CHARS = 15000
         docs_texts = [getattr(d, "page_content", str(d)) for d in documents]
         full_context = "\n\n---\n\n".join(docs_texts)
-    
+
         if len(full_context) > MAX_CONTEXT_CHARS:
-            print(f"⚠️ Context length ({len(full_context)} chars) is too long. Truncating to {MAX_CONTEXT_CHARS}.")
+            print(f"⚠️ Contexte trop long ({len(full_context)}). Troncature.")
             full_context = full_context[:MAX_CONTEXT_CHARS]
-        
-        print("---CHECKING FOR HALLUCINATIONS---")
-        # We now pass the potentially truncated context as a single item in a list.
-        # Dans graph.py, ligne 158 environ
-        if isinstance(full_context, list):  
-            documents_text = "\n\n".join([doc.page_content for doc in full_context])  
-        else:  
-            documents_text = str(full_context)
-        
+
+        documents_text = str(full_context)
+
+        # Vérification hallucinations
         try:
             hallucination_score = hallucination_grader.invoke({
-                "documents": documents_text[:5000],  # 🔒 Sécurise la taille du contexte
-                "generation": generation[:2000]      # 🔒 Limite aussi la génération
+                "documents": documents_text[:5000],
+                "generation": generation[:2000]
             })
         except Exception as e:
-            print(f"⚠️ Erreur dans hallucination_grader: {e}")
-            # On considère par défaut que c’est grounded pour ne pas bloquer
+            print(f"⚠️ Erreur hallucination_grader: {e}")
             return END
 
-
-    
-        # The rest of the logic proceeds as before.
         if not getattr(hallucination_score, "binary_score", False):
-            print("⛔ DECISION: HALLUCINATION DETECTED. Re-trying generation.")
-            if state["generation_count"] < 1: # Allow one retry
+            print("⛔ HALLUCINATION détectée → Retry si possible.")
+            if state["generation_count"] < 1:
                 return GENERATE
-            else:
-                print("⛔ Failed to correct hallucination after retry. Ending.")
-                return END
-                
-        print("✅ DECISION: GENERATION IS GROUNDED in documents.")
-        print("---CHECKING FOR ANSWER RELEVANCE---")
+            print("⛔ Échec après retry. Fin.")
+            return END
+
+        # Vérification pertinence
+        print("✅ Génération ancrée. Vérification pertinence.")
         answer_score = answer_grader.invoke({"question": question, "generation": generation})
         if getattr(answer_score, "binary_score", False):
-            print("✅ Answer is RELEVANT and GROUNDED. Ending.")
-            return END
+            print("✅ Réponse PERTINENTE & ANCRÉE.")
         else:
-            print("⛔ Answer is NOT RELEVANT, but grounded. Ending.")
-            return END
+            print("⛔ Réponse NON pertinente (mais ancrée).")
+        return END
 
+    # --- Construction du graphe ---
     def _setup_workflow(self):
-        """Construit et connecte les nœuds du graphe LangGraph."""
-        self.workflow.set_entry_point(RETRIEVE) # <--- POINT D'ENTRÉE SIMPLIFIÉ
-        
+        self.workflow.set_entry_point(RETRIEVE)
+
         self.workflow.add_node(RETRIEVE, self._retrieve_documents)
         self.workflow.add_node(GRADE_DOCUMENTS, self._grade_documents)
         self.workflow.add_node(QUERY_REWRITE, query_rewrite)
         self.workflow.add_node(WEBSEARCH, web_search)
         self.workflow.add_node(GENERATE, generate)
-        
-        # --- Définition des chemins (edges) ---
+
+        # Edges
         self.workflow.add_edge(RETRIEVE, GRADE_DOCUMENTS)
         self.workflow.add_edge(QUERY_REWRITE, RETRIEVE)
         self.workflow.add_edge(WEBSEARCH, GENERATE)
-        
+
         self.workflow.add_conditional_edges(
             GRADE_DOCUMENTS,
             self._decide_to_generate,
-            {
-                GENERATE: GENERATE,
-                QUERY_REWRITE: QUERY_REWRITE,
-                WEBSEARCH: WEBSEARCH
-            }
+            {GENERATE: GENERATE, QUERY_REWRITE: QUERY_REWRITE, WEBSEARCH: WEBSEARCH},
         )
         self.workflow.add_conditional_edges(
             GENERATE,
             self._grade_generation,
-            {
-                GENERATE: GENERATE,
-                END: END
-            }
+            {GENERATE: GENERATE, END: END},
         )
-        
+
+    # --- API publique ---
     def ask_question(self, question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
-        """
-        Point d'entrée principal pour poser une question au système.
-        Gère intelligemment le retriever à utiliser.
-        """
         if not self.app:
-            return {"success": False, "answer": "Erreur: Le système RAG n'est pas compilé."}
-            
-        # --- LOGIQUE CENTRALE CORRIGÉE ---
-        # Si un retriever est fourni (fichiers uploadés), on l'utilise.
-        # Sinon, on utilise le retriever par défaut initialisé au démarrage.
+            return {"success": False, "answer": "Erreur: Graphe RAG non compilé."}
+
+        # Choix du retriever (custom ou défaut)
         self.current_retriever = retriever if retriever is not None else self.default_retriever
-        
         if self.current_retriever is None:
-             return {"success": False, "answer": "Erreur: Aucun retriever n'est disponible (ni par défaut, ni personnalisé)."}
+            return {"success": False, "answer": "Erreur: Aucun retriever disponible."}
 
         initial_state = {"question": question, "query_rewrite_count": 0, "generation_count": 0}
-        
-        print(f"--- Lancement du graphe pour la question: '{question}' ---")
+        print(f"--- Lancement graphe pour question: '{question}' ---")
         start_time = time.time()
-        
+
         final_state = None
         try:
             for event in self.app.stream(initial_state, config=config, stream_mode="values"):
                 final_state = event
-            
+
             end_time = time.time()
-            
-            answer = final_state.get("generation", "Aucune réponse n'a pu être générée.")
+            answer = final_state.get("generation", "Aucune réponse générée.")
             docs_used = final_state.get("documents", [])
-            
+
             return {
                 "success": True,
                 "answer": answer,
@@ -266,13 +226,14 @@ class AdaptiveRAGSystem:
             }
         except Exception as e:
             end_time = time.time()
-            print(f"--- ERREUR D'EXÉCUTION DU GRAPHE: {e} ---")
+            print(f"--- ERREUR EXECUTION GRAPHE: {e} ---")
             traceback.print_exc()
             return {
                 "success": False,
-                "answer": f"Une erreur est survenue: {e}",
+                "answer": f"Erreur: {e}",
                 "processing_time": round(end_time - start_time, 2),
             }
 
-# --- Instance unique (Singleton) pour l'application ---
+
+# --- Instance unique pour l'application ---
 rag_system = AdaptiveRAGSystem()
