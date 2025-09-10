@@ -17,7 +17,7 @@ import time
 import traceback
 from langgraph.checkpoint.memory import MemorySaver
 from state import GraphState
-
+from nodes.retriever import retrieve_with_global
 # Load environment variables
 load_dotenv()
 
@@ -26,11 +26,18 @@ class AdaptiveRAGSystem:
     Modular Adaptive RAG System with Self-Reflection
     """
     
+    
+
+# Then in __init__:
     def __init__(self):
         """Initialize the RAG system"""
         self.app = None
-        self.current_retriever = None  # Store retriever as instance attribute
+        self.current_retriever = None
         self._setup_workflow()
+        
+        # Set up global retriever reference
+        from nodes.retriever import set_global_retriever
+        self.set_global_retriever = set_global_retriever
     
     def _call_retriever(self, retriever, question: str):
         """
@@ -130,7 +137,7 @@ class AdaptiveRAGSystem:
         self.workflow = StateGraph(GraphState)
         
         # Add nodes - using internal methods to ensure retriever access
-        self.workflow.add_node(RETRIEVE, self._retrieve_documents)
+        self.workflow.add_node(RETRIEVE, self._retrieve_documents)  # NOT the external retrieve function
         self.workflow.add_node(GRADE_DOCUMENTS, self._grade_documents)
         self.workflow.add_node(GENERATE, generate)
         self.workflow.add_node(WEBSEARCH, web_search)
@@ -241,19 +248,18 @@ class AdaptiveRAGSystem:
             print(f"---DECISION: {len(documents)} RELEVANT DOCUMENTS FOUND. PROCEEDING TO GENERATE.---")
             return GENERATE
 
-    def ask_question(self, question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
+   def ask_question(self, question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
         """Ask a question and get an answer from the RAG system"""
         if not self.app:
             raise Exception("RAG system not initialized")
         
-        # CRITICAL: Set the retriever in the instance BEFORE invoking
+        # Set both instance and global retriever
         self.current_retriever = retriever
-        
         if retriever:
-            print(f"✅ Retriever set: {type(retriever)}")
-        else:
-            print("⚠️ No retriever provided - will use web search if needed")
-        
+            self.set_global_retriever(retriever)
+            else:
+                print("⚠️ No retriever provided - will use web search if needed")
+            
         initial_state = {
             "question": question,
             "generation": "",
