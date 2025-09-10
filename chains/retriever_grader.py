@@ -33,12 +33,12 @@ grade_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-# 5. Parser JSON
-parser = JsonOutputParser(pydantic_object=GradeDocuments)
+structured_llm_rewriter = llm.with_structured_output(GradeDocuments)
+
 
 # 6. Chaîne Finale (CORRIGÉE avec .bind() et le parser)
 retrieval_grader = (
     grade_prompt 
-    | llm
+    | structured_llm_rewriter
     | StrOutputParser
 )
