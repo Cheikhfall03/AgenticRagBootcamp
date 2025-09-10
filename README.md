@@ -150,6 +150,9 @@ Contributions are welcome! Please feel free to open an issue or submit a pull re
 - [Streamlit](https://streamlit.io/) for the user interface
 - [NSKAI](https://www.nskai.org/) for the tranning bootcamp
 
+  ## 🌐 WebSite
+- You can visite the app [NewsAI](https://agenticragbootcamp.streamlit.app/)  
+
 ---
 
 ⭐ **Don't forget to star the project if you found it useful!**
