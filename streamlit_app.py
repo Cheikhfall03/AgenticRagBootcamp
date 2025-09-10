@@ -225,6 +225,10 @@ with st.sidebar:
         st.rerun()
 
 # --- Main Chat Interface ---
+# MODIFICATION : Initialisation du thread_id pour la mémoire conversationnelle
+if "thread_id" not in st.session_state:
+    st.session_state.thread_id = str(uuid.uuid4())
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -249,16 +253,21 @@ if prompt := st.chat_input("💭 Ask your question..."):
         response_data = {}
         retriever_obj = st.session_state.get("retriever")
 
+        # MODIFICATION : Création du dictionnaire de configuration pour le passage du thread_id
+        config = {"configurable": {"thread_id": st.session_state.thread_id}}
+
         if retriever_obj:
             st.markdown('<div class="status-indicator status-info">📚 Using your documents...</div>', unsafe_allow_html=True)
             logging.info(f"✅ Retriever found in session state. Type: {type(retriever_obj)}. Invoking RAG.")
             with st.spinner("Processing with NewsAI..."):
-                response_data = rag_system_instance.ask_question(prompt, retriever=retriever_obj)
+                # MODIFICATION : Ajout de 'config' à l'appel de la fonction
+                response_data = rag_system_instance.ask_question(prompt, retriever=retriever_obj, config=config)
         else:
             st.markdown('<div class="status-indicator status-info">🌐 Using general knowledge...</div>', unsafe_allow_html=True)
             logging.warning("⚠️ No retriever in session state. Falling back to general mode.")
             with st.spinner("Analyzing with NewsAI..."):
-                response_data = rag_system_instance.ask_question(prompt, retriever=None)
+                # MODIFICATION : Ajout de 'config' à l'appel de la fonction
+                response_data = rag_system_instance.ask_question(prompt, retriever=None, config=config)
 
         if response_data.get("success", False):
             answer = response_data["answer"]
@@ -275,4 +284,3 @@ if prompt := st.chat_input("💭 Ask your question..."):
             st.session_state.messages.append({"role": "assistant", "content": error_msg})
         
         st.rerun()
-
