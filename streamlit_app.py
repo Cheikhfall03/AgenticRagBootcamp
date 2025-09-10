@@ -1,4 +1,4 @@
-# streamlit_app.py (Version Complète et Corrigée)
+# streamlit_app.py (Version Complète et Finalisée)
 
 # This block must be at the VERY BEGINNING of the file.
 try:
@@ -16,14 +16,10 @@ import time
 import uuid
 
 import streamlit as st
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
-from langchain_community.vectorstores import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
 
-# Import the unique instance of your RAG system
+# Import the unique instance of your RAG system from graph.py
 from graph import rag_system
-# This function is assumed to be in your ingestion.py file
+# Import the retriever creation function from ingestion.py
 from ingestion.ingestion import create_retriever_from_files
 
 # --- Page and Logging Configuration ---
@@ -107,7 +103,6 @@ with st.sidebar:
             if st.button("🚀 Process", use_container_width=True):
                 with st.spinner("🔄 Processing documents..."):
                     try:
-                        # Save uploaded files to temp directory
                         file_paths = []
                         for uploaded_file in uploaded_files:
                             temp_path = os.path.join(TEMP_DIR, uploaded_file.name)
@@ -115,7 +110,6 @@ with st.sidebar:
                                 f.write(uploaded_file.getvalue())
                             file_paths.append(temp_path)
                         
-                        # Create retriever using the function from ingestion.py
                         retriever = create_retriever_from_files(file_paths)
                         st.session_state.retriever = retriever
                         st.session_state.document_names = [f.name for f in uploaded_files]
@@ -132,7 +126,7 @@ with st.sidebar:
                         del st.session_state[key]
                 if os.path.exists(TEMP_DIR):
                     shutil.rmtree(TEMP_DIR)
-                    os.makedirs(TEMP_DIR) # Re-create the directory
+                    os.makedirs(TEMP_DIR)
                 st.success("🗑️ Documents and chat cleared!")
                 st.rerun()
 
@@ -179,47 +173,43 @@ if prompt := st.chat_input("💭 Ask your question..."):
         st.markdown(f'<div class="chat-message">{prompt}</div>', unsafe_allow_html=True)
 
     with st.chat_message("assistant"):
-        retriever_obj = st.session_state.get("retriever")
-        
-        if retriever_obj:
+        # Get the custom retriever from the session, if it exists
+        retriever_for_this_query = st.session_state.get("retriever")
+
+        if retriever_for_this_query:
             st.markdown('<div class="status-indicator status-info">📚 Using your documents...</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div class="status-indicator status-info">🌐 Using general knowledge...</div>', unsafe_allow_html=True)
-        
+
         config = {"configurable": {"thread_id": st.session_state.thread_id}}
 
-        # --- CORRECTED STREAMING LOGIC ---
+        # Use the clean .run() method from the RAG system class
+        # This method handles all the internal logic of selecting the retriever
+        response_stream = rag_system_instance.run(
+            prompt,
+            retriever=retriever_for_this_query,
+            config=config
+        )
+        
+        # Generator function to correctly process the LangGraph stream
         def stream_rag_response():
-            initial_state = {
-                "question": prompt,
-                "generation": "",
-                "documents": [],
-                "file_paths": [], 
-                "web_search": False,
-                "query_rewrite_count": 0,
-                "generation_count": 0
-            }
-            
-            # Iterate over the graph's event stream
-            for event in rag_system_instance.app.stream(initial_state, retriever=retriever_obj, config=config):
+            for event in response_stream:
                 # The stream yields a dictionary: {node_name: node_output}
-                # We check if the 'generate' node is the key in the current event
+                # Check if the 'generate' node is the key for the current event
                 if "generate" in event:
-                    # If so, we've reached the generation node.
-                    # Its output is a dictionary containing the "generation" key.
+                    # If so, get the "generation" value from the node's output
                     generation_chunk = event["generate"].get("generation")
                     if generation_chunk:
-                        # Yield the text chunk to st.write_stream
                         yield generation_chunk
 
-        # Use st.write_stream to display the response as it arrives
+        # Use st.write_stream to display the response from the generator
         response_container = st.empty()
         full_response = response_container.write_stream(stream_rag_response)
         
-        # Apply the chat message styling to the complete response
+        # Display the final message and save it to history
         if full_response:
              response_container.markdown(f'<div class="chat-message">{full_response}</div>', unsafe_allow_html=True)
-             # Add the final, complete response to the message history
              st.session_state.messages.append({"role": "assistant", "content": full_response})
         else:
              response_container.markdown(f'<div class="chat-message">Sorry, I was unable to generate a response. Please try rephrasing your question.</div>', unsafe_allow_html=True)
+             st.session_state.messages.append({"role": "assistant", "content": "Sorry, I was unable to generate a response. Please try rephrasing your question."})
