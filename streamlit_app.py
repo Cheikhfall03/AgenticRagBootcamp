@@ -18,7 +18,7 @@ import uuid
 import streamlit as st
 
 # Import the unique instance of your RAG system from graph.py
-from graph import AdaptiveRAGSystem 
+from graph import rag_system
 # Import the retriever creation function from ingestion.py
 from ingestion.ingestion import create_retriever_from_files
 
@@ -64,7 +64,7 @@ if not os.path.exists(TEMP_DIR):
 
 # --- System Initialization ---
 try:
-    rag_system = AdaptiveRAGSystem()
+   # rag_system = AdaptiveRAGSystem()
     rag_system_instance = rag_system
     system_status = "✅ System Operational"
     system_class = "status-success"
