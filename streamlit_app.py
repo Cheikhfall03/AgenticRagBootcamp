@@ -22,7 +22,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 # Import the unique instance of your RAG system
 from graph import rag_system
 # This function is assumed to be in your ingestion.py file
-from ingestion import create_retriever_from_files
+from ingestion.ingestion import create_retriever_from_files
 
 # --- Page and Logging Configuration ---
 st.set_page_config(page_title="NewsAI - Adaptive RAG System", page_icon="🚀", layout="wide")
