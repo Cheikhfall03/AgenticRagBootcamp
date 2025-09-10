@@ -19,7 +19,7 @@ class GradeAnswer(BaseModel):
 
 # LLM with function call
 llm = ChatGroq(
-    model="gemma2-9b-it",
+    model="openai/gpt-oss-20b",
     temperature=0.0,
     api_key=os.getenv("GROQ_API_KEY")
 )
