@@ -18,7 +18,7 @@ import uuid
 import streamlit as st
 
 # Import the unique instance of your RAG system from graph.py
-from graph import rag_system
+from graph import AdaptiveRAGSystem 
 # Import the retriever creation function from ingestion.py
 from ingestion.ingestion import create_retriever_from_files
 
