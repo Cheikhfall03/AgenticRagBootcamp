@@ -3,7 +3,7 @@ import os
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_core.output_parsers import StrOutputParser
-
+from langchain_core.runnables import RunnableMap, RunnablePassthrough
 # LLM Groq
 llm = ChatGroq(
     model="openai/gpt-oss-20b",  # or another supported model
