@@ -1,7 +1,7 @@
 # chains/hallucination_grader.py (Version Corrigée)
 
 from pydantic import BaseModel, Field
-from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 
@@ -62,5 +62,5 @@ hallucination_prompt = ChatPromptTemplate.from_messages([
 hallucination_grader = (
     hallucination_prompt 
     | llm.bind(response_format={"type": "json_object"}) 
-    | 
+    | StrOutputParser
 )
