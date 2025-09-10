@@ -32,7 +32,7 @@ def generate(state: GraphState):
 
     # Initialize the LLM
     llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.0)
-
+    
     # --- THIS IS THE FIX ---
     # The code now handles a list containing both Document objects and strings.
     if documents:
