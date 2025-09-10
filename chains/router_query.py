@@ -38,6 +38,6 @@ structured_llm_rewriter = llm.with_structured_output(RouteQuery)
 # Chaîne Finale (CORRIGÉE avec .bind() et le parser)
 question_router = (
     route_prompt 
-    | lstructured_llm_rewriter
+    | structured_llm_rewriter
     | StrOutputParser
 )
