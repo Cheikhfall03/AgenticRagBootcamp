@@ -61,6 +61,6 @@ hallucination_prompt = ChatPromptTemplate.from_messages([
 # C'est la correction clé pour éviter l'erreur 'tool_use_failed'.
 hallucination_grader = (
     hallucination_prompt 
-    | llm.bind(response_format={"type": "json_object"}) 
+    | llm
     | StrOutputParser
 )
