@@ -49,28 +49,32 @@ class AdaptiveRAGSystem:
         self.app = self.workflow.compile(checkpointer=memory)
         print("✅ Graphe LangGraph compilé avec succès.")
 
-    def _route_question(self, state: GraphState) -> str:
+    def _route_question(self, state: GraphState) -> Dict[str, Any]:
         print("---NŒUD: ROUTAGE DE LA QUESTION---")
         question = state["question"]
         try:
             source: RouteQuery = question_router.invoke({"question": question})
             print(f"📌 Décision de routage brute: {source}")
-
-            # Toujours renvoyer une string simple
-            if str(source.datasource).strip().lower() == WEBSEARCH:
+    
+            datasource = str(source.datasource).strip().lower()
+    
+            if datasource == WEBSEARCH:
                 print("➡️ Décision: La question nécessite une recherche web.")
-                return WEBSEARCH
-            elif str(source.datasource).strip().lower() == RETRIEVE:
+                return {"next": WEBSEARCH, "question": question}
+    
+            elif datasource == RETRIEVE:
                 print("➡️ Décision: La question concerne les documents fournis.")
-                return RETRIEVE
+                return {"next": RETRIEVE, "question": question}
+    
             else:
                 print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
-                return RETRIEVE
-
+                return {"next": RETRIEVE, "question": question}
+    
         except Exception as e:
             print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
             print("➡️ Fallback: récupération de documents.")
-            return RETRIEVE
+            return {"next": RETRIEVE, "question": question}
+
 
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
         print("---NŒUD: RÉCUPÉRATION DE DOCUMENTS---")
@@ -170,13 +174,13 @@ class AdaptiveRAGSystem:
 
         # Connexions conditionnelles depuis le routeur
         self.workflow.add_conditional_edges(
-            ROUTE_QUESTION,
-            self._route_question,
-            {
-                WEBSEARCH: WEBSEARCH,
-                RETRIEVE: RETRIEVE
-            }
-        )
+    ROUTE_QUESTION,
+    lambda state: state["next"],   # <- Utiliser la clé "next"
+    {
+        WEBSEARCH: WEBSEARCH,
+        RETRIEVE: RETRIEVE
+    }
+)
 
         self.workflow.add_edge(RETRIEVE, GRADE_DOCUMENTS)
         self.workflow.add_edge(QUERY_REWRITE, RETRIEVE)
