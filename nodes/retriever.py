@@ -18,7 +18,7 @@ def retrieve(state: GraphState) -> Dict[str, Any]:
     print("---RETRIEVE DOCUMENTS (STANDALONE NODE)---")
     print("⚠️ WARNING: This node expects system-level retriever management.")
     
-    question = state["question"]
+    question = state.get("question", "")
     
     # This standalone node doesn't have access to the system retriever
     # It would need to be modified to work with your specific setup
@@ -37,6 +37,27 @@ def set_global_retriever(retriever):
     _global_retriever = retriever
     print(f"✅ Global retriever set: {type(retriever)}")
 
+def _call_global_retriever(retriever, question: str):
+    """Same robust call pattern as in graph.py"""
+    if retriever is None:
+        return []
+    for method_name in ("get_relevant_documents", "get_relevant_texts", "retrieve", "invoke"):
+        method = getattr(retriever, method_name, None)
+        if callable(method):
+            try:
+                result = method(question)
+                return result if result is not None else []
+            except Exception as e:
+                print(f"⚠️ Global retriever method '{method_name}' raised: {e}")
+                continue
+    if callable(retriever):
+        try:
+            return retriever(question)
+        except Exception as e:
+            print(f"⚠️ Calling global retriever as callable failed: {e}")
+    print("⚠️ No usable method found on global retriever.")
+    return []
+
 def retrieve_with_global(state: GraphState) -> Dict[str, Any]:
     """
     Retrieve documents using the global retriever.
@@ -44,12 +65,13 @@ def retrieve_with_global(state: GraphState) -> Dict[str, Any]:
     """
     print("---RETRIEVE DOCUMENTS (GLOBAL RETRIEVER)---")
     
-    question = state["question"]
+    question = state.get("question", "")
     
     if _global_retriever is not None:
         print("📁 Using global retriever")
         try:
-            documents = _global_retriever.invoke(question)
+            documents = _call_global_retriever(_global_retriever, question)
+            documents = list(documents) if documents is not None else []
             print(f"✅ Retrieved {len(documents)} documents")
             return {"documents": documents}
         except Exception as e:
