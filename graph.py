@@ -1,6 +1,6 @@
 import time
 import traceback
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Iterator
 from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
@@ -211,53 +211,36 @@ class AdaptiveRAGSystem:
             }
         )
 
-    def ask_question(self, question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
+    def run(self, question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Iterator[Dict[str, Any]]:
         """
-        Point d'entrée principal pour poser une question au système.
-        Gère intelligemment le retriever à utiliser.
+        Point d'entrée principal pour exécuter le graphe.
+        Il sélectionne le bon retriever puis lance le flux (stream).
         """
         if not self.app:
-            return {"success": False, "answer": "Erreur: Le système RAG n'est pas compilé."}
+            print("Erreur: Le système RAG n'est pas compilé.")
+            return iter([]) # Return an empty iterator
 
         # Si un retriever est fourni (fichiers uploadés), on l'utilise.
         # Sinon, on utilise le retriever par défaut initialisé au démarrage.
         self.current_retriever = retriever if retriever is not None else self.default_retriever
 
         if self.current_retriever is None:
-            return {"success": False, "answer": "Erreur: Aucun retriever n'est disponible (ni par défaut, ni personnalisé)."}
+            print("Erreur: Aucun retriever n'est disponible (ni par défaut, ni personnalisé).")
+            return iter([]) # Return an empty iterator
 
-        initial_state = {"question": question, "query_rewrite_count": 0, "generation_count": 0}
+        initial_state = {
+            "question": question,
+            "query_rewrite_count": 0,
+            "generation_count": 0,
+            "documents": [],
+            "generation": ""
+        }
 
         print(f"--- Lancement du graphe pour la question: '{question}' ---")
-        start_time = time.time()
-
-        final_state = None
-        try:
-            for event in self.app.stream(initial_state, config=config, stream_mode="values"):
-                final_state = event
-
-            end_time = time.time()
-
-            answer = final_state.get("generation", "Aucune réponse n'a pu être générée.")
-            docs_used = final_state.get("documents", [])
-
-            return {
-                "success": True,
-                "answer": answer,
-                "processing_time": round(end_time - start_time, 2),
-                "documents_used": len(docs_used),
-                "query_rewrites": final_state.get("query_rewrite_count", 0),
-                "documents": docs_used,
-            }
-        except Exception as e:
-            end_time = time.time()
-            print(f"--- ERREUR D'EXÉCUTION DU GRAPHE: {e} ---")
-            traceback.print_exc()
-            return {
-                "success": False,
-                "answer": f"Une erreur est survenue: {e}",
-                "processing_time": round(end_time - start_time, 2),
-            }
+        
+        # Return the stream generator directly
+        return self.app.stream(initial_state, config=config)
 
 # --- Instance unique (Singleton) pour l'application ---
 rag_system = AdaptiveRAGSystem()
+
