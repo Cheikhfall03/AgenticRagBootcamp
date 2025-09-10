@@ -39,6 +39,6 @@ parser = JsonOutputParser(pydantic_object=GradeDocuments)
 # 6. Chaîne Finale (CORRIGÉE avec .bind() et le parser)
 retrieval_grader = (
     grade_prompt 
-    | llm.bind(response_format={"type": "json_object"}) 
+    | llm
     | StrOutputParser
 )
