@@ -40,6 +40,6 @@ parser = JsonOutputParser(pydantic_object=RouteQuery)
 # Chaîne Finale (CORRIGÉE avec .bind() et le parser)
 question_router = (
     route_prompt 
-    | llm.bind(response_format={"type": "json_object"}) 
-    | parser
+    | llm 
+    | StrOutputParser
 )
