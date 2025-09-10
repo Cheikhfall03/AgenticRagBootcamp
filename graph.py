@@ -172,7 +172,8 @@ class AdaptiveRAGSystem:
             print(f"---DECISION: {len(state['documents'])} RELEVANT DOCUMENTS FOUND. PROCEEDING TO GENERATE.---")
             return GENERATE
 
-    def ask_question(self, question: str, retriever: Optional[Any] = None) -> Dict[str, Any]:
+    # <-- MODIFIÉ : Ajout de 'config: Optional[Dict] = None' à la signature de la fonction
+    def ask_question(self, question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
         """Ask a question and get an answer from the RAG system"""
         if not self.app:
             raise Exception("RAG system not initialized")
@@ -188,11 +189,13 @@ class AdaptiveRAGSystem:
         
         print(f"--- Invoking RAG workflow for question: {question} ---")
         start_time = time.time()
-        # La configuration pour la conversation doit être ajoutée ici
-        config = {"configurable": {"thread_id": "1"}} 
+        
+        # <-- MODIFIÉ : Utilisation du paramètre 'config' passé à la fonction
         result = self.app.invoke(initial_state, config=config)
+        
         end_time = time.time()
-        print("--- Workflow compiled successfully ---")
+        # Le print a été déplacé pour être plus logique
+        print("--- Workflow invocation completed ---") 
         
         return {
             "success": True,
@@ -207,6 +210,8 @@ class AdaptiveRAGSystem:
 # Singleton instance for easy import
 rag_system = AdaptiveRAGSystem()
 
-def ask_question(question: str, retriever: Optional[Any] = None) -> Dict[str, Any]:
+# <-- MODIFIÉ : Ajout de 'config: Optional[Dict] = None' pour relayer le paramètre
+def ask_question(question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
     """Convenience function to ask a question"""
-    return rag_system.ask_question(question, retriever=retriever)
+    # <-- MODIFIÉ : Passage de 'config' à la méthode de la classe
+    return rag_system.ask_question(question, retriever=retriever, config=config)
