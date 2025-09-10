@@ -47,27 +47,29 @@ class AdaptiveRAGSystem:
         self.app = self.workflow.compile(checkpointer=memory)
         print("✅ Graphe LangGraph compilé avec succès.")
 
-        def _route_question(self, state: GraphState) -> str:
-            print("---NŒUD: ROUTAGE DE LA QUESTION---")
-            question = state["question"]
-            try:
-                source: RouteQuery = question_router.invoke({"question": question})
-                print(f"📌 Décision de routage brute: {source}")
+     def _route_question(self, state: GraphState) -> str:
+         print("---NŒUD: ROUTAGE DE LA QUESTION---")
+         question = state["question"]
+         try:
+           source: RouteQuery = question_router.invoke({"question": question})
+           print(f"📌 Décision de routage brute: {source}")
         
-                if source.datasource == WEBSEARCH:
-                    print("➡️ Décision: La question nécessite une recherche web.")
-                    return WEBSEARCH   # ✅ string
-                elif source.datasource == RETRIEVE:
-                    print("➡️ Décision: La question concerne les documents fournis.")
-                    return RETRIEVE    # ✅ string
-                else:
-                    print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
-                    return RETRIEVE    # ✅ string
+                # Toujours renvoyer une string simple
+           if str(source.datasource).strip().lower() == WEBSEARCH:
+               print("➡️ Décision: La question nécessite une recherche web.")
+               return WEBSEARCH   # ✅ string
+               elif str(source.datasource).strip().lower() == RETRIEVE:
+                   print("➡️ Décision: La question concerne les documents fournis.")
+                   return RETRIEVE    # ✅ string
+               else:
+                   print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
+                   return RETRIEVE
         
-            except Exception as e:
-                print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
-                print("➡️ Fallback: récupération de documents.")
-            return RETRIEVE        # ✅ string
+         except Exception as e:
+            print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
+            print("➡️ Fallback: récupération de documents.")
+            return RETRIEVE
+ ✅ string
 
 
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
