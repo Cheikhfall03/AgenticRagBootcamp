@@ -1,40 +1,44 @@
-# ### Retrieval Grader ###
+# chains/retriever_grader.py (Version Corrigée)
 
-# 1. Imports
+# 1. Imports (JsonOutputParser ajouté)
 from pydantic import BaseModel, Field
 from langchain_groq import ChatGroq
+from langchain_core.output_parsers import JsonOutputParser # Ajout de l'import
 from langchain_core.prompts import ChatPromptTemplate
 import os
-# 2. Data model (Corrected to use a boolean)
-class GradeDocuments(BaseModel):
-    """Binary score for relevance check on retrieved documents."""
 
+# 2. Modèle Pydantic (inchangé)
+class GradeDocuments(BaseModel):
+    """Score binaire pour la vérification de la pertinence des documents récupérés."""
     binary_score: bool = Field(
-        description="Is the document relevant to the question? Set to True if relevant, False otherwise."
+        description="Le document est-il pertinent pour la question ? Mettre à True si pertinent, False sinon."
     )
 
-# 3. LLM with structured output
-
+# 3. LLM (sans .with_structured_output)
 llm = ChatGroq(
-    model="openai/gpt-oss-20b",
-    temperature=0.0,
-    api_key=os.getenv("GROQ_API_KEY")
+    # Pour de meilleures performances, envisagez "llama3-8b-8192"
+    model="openai/gpt-oss-20b", 
+    temperature=0.0
 )
-structured_llm_grader = llm.with_structured_output(GradeDocuments)
 
-# 4. Prompt (Corrected to ask for a boolean score)
-system = """You are a grader assessing the relevance of a retrieved document to a user's question.
-    Your goal is to filter out erroneous retrievals. If the document contains keywords or semantic meaning related to the user's question, grade it as relevant.
-    Provide a boolean score: True if the document is relevant, and False otherwise."""
+# 4. Prompt (légèrement amélioré pour plus de clarté)
+system = """Vous êtes un évaluateur qui juge la pertinence d'un document récupéré par rapport à une question de l'utilisateur.
+    Votre objectif est de filtrer les documents non pertinents. Si le document contient des mots-clés ou un sens sémantique lié à la question, notez-le comme pertinent.
+    Répondez uniquement avec un objet JSON valide. Fournissez un score booléen : True si le document est pertinent, False sinon."""
 
 grade_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system),
-        ("human", "Retrieved document: \n\n {document} \n\n User question: {question}"),
+        ("human", "Document Récupéré: \n\n {document} \n\n Question de l'utilisateur: {question}"),
     ]
 )
 
-# 5. Final chain
-retrieval_grader = grade_prompt | structured_llm_grader
+# 5. Parser JSON
+parser = JsonOutputParser(pydantic_object=GradeDocuments)
 
-
+# 6. Chaîne Finale (CORRIGÉE avec .bind() et le parser)
+retrieval_grader = (
+    grade_prompt 
+    | llm.bind(response_format={"type": "json_object"}) 
+    | parser
+)
