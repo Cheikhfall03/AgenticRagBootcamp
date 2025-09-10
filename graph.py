@@ -89,12 +89,15 @@ class AdaptiveRAGSystem:
         return {"documents": filtered_docs}
 
     def _route_question(self, state: GraphState) -> str:
-        """
-        Route toujours vers la récupération de documents, car nous avons toujours un retriever.
-        """
-        print("---NŒUD: ROUTAGE DE LA QUESTION---")
-        print("➡️ Toujours router vers RETRIEVE car un retriever (défaut ou custom) est toujours disponible.")
-        return RETRIEVE
+        print("---ROUTE QUESTION---")
+        question = state["question"]
+        source: RouteQuery = question_router.invoke({"question": question})
+        if source.datasource == WEBSEARCH:
+            print("---ROUTE QUESTION TO WEB SEARCH---")
+            return WEBSEARCH
+        elif source.datasource == "vectorstore":
+            print("---ROUTE QUESTION TO RAG---")
+            return RETRIEVE
 
     def _decide_to_generate(self, state: GraphState) -> str:
         """
