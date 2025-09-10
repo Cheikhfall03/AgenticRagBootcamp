@@ -16,7 +16,7 @@ class GradeHallucinations(BaseModel):
 # 3. LLM with structured output
 # Using a specific model for grading is a good practice.
 llm = ChatGroq(
-    model="gemma2-9b-it",
+    model="llama-3.1-8b-instant",
     temperature=0.0,
    api_key=os.getenv("GROQ_API_KEY")
 )
