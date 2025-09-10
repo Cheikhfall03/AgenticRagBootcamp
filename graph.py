@@ -162,7 +162,6 @@ class AdaptiveRAGSystem:
 
     def _setup_workflow(self):
         """Construit le graphe avec le routage intelligent en point d'entrée."""
-        self.workflow.add_node(ROUTE_QUESTION, self._route_question)
         self.workflow.add_node(RETRIEVE, self._retrieve_documents)
         self.workflow.add_node(GRADE_DOCUMENTS, self._grade_documents)
         self.workflow.add_node(QUERY_REWRITE, query_rewrite)
