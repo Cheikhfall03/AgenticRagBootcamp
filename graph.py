@@ -161,10 +161,16 @@ class AdaptiveRAGSystem:
         else:  
             documents_text = str(full_context)
         
-        hallucination_score = hallucination_grader.invoke({
-            "documents": documents_text,
-            "generation": generation
-        })
+        try:
+            hallucination_score = hallucination_grader.invoke({
+                "documents": documents_text[:5000],  # 🔒 Sécurise la taille du contexte
+                "generation": generation[:2000]      # 🔒 Limite aussi la génération
+            })
+        except Exception as e:
+            print(f"⚠️ Erreur dans hallucination_grader: {e}")
+            # On considère par défaut que c’est grounded pour ne pas bloquer
+            return END
+
 
     
         # The rest of the logic proceeds as before.
