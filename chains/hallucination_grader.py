@@ -1,5 +1,5 @@
 # chains/hallucination_grader.py (Version Corrigée)
-
+from langchain_core.runnables import RunnableSequence
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
