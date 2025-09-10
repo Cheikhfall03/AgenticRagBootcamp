@@ -18,7 +18,7 @@ from Node_constant import RETRIEVE, GRADE_DOCUMENTS, GENERATE, WEBSEARCH, QUERY_
 from state import GraphState
 
 # --- Import de l'initialiseur du retriever par défaut ---
-from ingestion import initialize_default_retriever
+from ingestion.ingestion import initialize_default_retriever
 
 load_dotenv()
 
