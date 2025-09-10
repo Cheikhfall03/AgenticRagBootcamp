@@ -12,7 +12,7 @@ from chains.router_query import question_router
 from chains.hallucination_grader import hallucination_grader
 from nodes.web_search import web_search
 from nodes.query_rewrite import query_rewrite
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import time
 import traceback
 from langgraph.checkpoint.memory import MemorySaver
@@ -29,25 +29,59 @@ class AdaptiveRAGSystem:
     def __init__(self):
         """Initialize the RAG system"""
         self.app = None
-        self.current_retriever = None  # Store retriever outside of state
+        self.current_retriever = None  # Store retriever as instance attribute
         self._setup_workflow()
     
+    def _call_retriever(self, retriever, question: str):
+        """
+        Try calling retriever with common method names:
+        - get_relevant_documents(query)
+        - get_relevant_texts(query)
+        - retrieve(query)
+        - invoke(query)  <-- kept for any custom retrievers that provide it
+        Returns a list (possibly empty) of Document-like objects.
+        """
+        if retriever is None:
+            return []
+        # Try common methods in order
+        for method_name in ("get_relevant_documents", "get_relevant_texts", "retrieve", "invoke"):
+            method = getattr(retriever, method_name, None)
+            if callable(method):
+                try:
+                    result = method(question)
+                    # Many retrievers return iterables or lists of Document objects
+                    return result if result is not None else []
+                except Exception as e:
+                    # continue trying other method names
+                    print(f"⚠️ Retriever method '{method_name}' raised error: {e}")
+                    continue
+        # If no method worked, try calling as a callable (some custom wrappers)
+        if callable(retriever):
+            try:
+                return retriever(question)
+            except Exception as e:
+                print(f"⚠️ Calling retriever as callable failed: {e}")
+        print("⚠️ No usable method found on retriever. Returning empty list.")
+        return []
+
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
         """
         Retrieve documents using the current retriever.
         This replaces the external retrieve node to ensure retriever access.
         """
         print("---RETRIEVE DOCUMENTS---")
-        question = state["question"]
+        question = state.get("question", "")
         
         documents = []
         if self.current_retriever is not None:
-            print("📁 Using uploaded documents retriever")
+            print("📁 Using provided retriever (uploaded documents or vectorstore)")
             try:
-                documents = self.current_retriever.invoke(question)
-                print(f"✅ Retrieved {len(documents)} documents from uploaded files")
+                documents = self._call_retriever(self.current_retriever, question)
+                # Ensure we always return an iterable/list
+                documents = list(documents) if documents is not None else []
+                print(f"✅ Retrieved {len(documents)} documents from retriever")
             except Exception as e:
-                print(f"❌ Error retrieving from uploaded documents: {e}")
+                print(f"❌ Error retrieving from retriever: {e}")
                 documents = []
         else:
             print("⚠️ No custom retriever provided. Returning empty list.")
@@ -60,8 +94,8 @@ class AdaptiveRAGSystem:
         Grade documents for relevance to the question.
         """
         print("---CHECK DOCUMENT RELEVANCE TO QUESTION---")
-        question = state["question"]
-        documents = state["documents"]
+        question = state.get("question", "")
+        documents = state.get("documents", [])
         
         if not documents:
             print("---NO DOCUMENTS TO GRADE---")
@@ -70,11 +104,13 @@ class AdaptiveRAGSystem:
         filtered_docs = []
         for d in documents:
             try:
+                # handle Document objects (with page_content) or raw strings
+                doc_text = getattr(d, "page_content", None) or getattr(d, "text", None) or str(d)
                 score = retrieval_grader.invoke(
-                    {"question": question, "document": d.page_content}
+                    {"question": question, "document": doc_text}
                 )
                 # The grader returns a Pydantic model with a boolean 'binary_score'
-                grade = score.binary_score
+                grade = getattr(score, "binary_score", False)
                 
                 if grade:
                     print("---GRADE: DOCUMENT RELEVANT---")
@@ -144,21 +180,23 @@ class AdaptiveRAGSystem:
     def _grade_generation_grounded_in_documents_and_question(self, state: GraphState) -> str:
         """Grades the generation for hallucinations and relevance"""
         print("---CHECK HALLUCINATIONS---")
-        question = state["question"]
-        documents = state["documents"]
-        generation = state["generation"]
+        question = state.get("question", "")
+        documents = state.get("documents", [])
+        generation = state.get("generation", "")
         generation_count = state.get("generation_count", 0)
 
         try:
-            score = hallucination_grader.invoke({"documents": documents, "generation": generation})
+            # Provide raw text fallback for grader
+            docs_texts = [getattr(d, "page_content", None) or getattr(d, "text", None) or str(d) for d in documents]
+            score = hallucination_grader.invoke({"documents": docs_texts, "generation": generation})
 
-            if not score.binary_score:
+            if not getattr(score, "binary_score", False):
                 print("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
                 return "not supported" if generation_count < 3 else "fail"
 
             print("---DECISION: GENERATION IS GROUNDED IN DOCUMENTS---")
             score = answer_grader.invoke({"question": question, "generation": generation})
-            return "useful" if score.binary_score else "not useful"
+            return "useful" if getattr(score, "binary_score", False) else "not useful"
             
         except Exception as e:
             print(f"---ERROR IN GRADING: {e}---")
@@ -168,15 +206,17 @@ class AdaptiveRAGSystem:
         """Route the question to appropriate processing path"""
         print("---ROUTE QUESTION---")
         
-        # Check if we have a retriever set in the instance
+        # If retriever present, route to RETRIEVE (RAG path)
         if self.current_retriever is not None:
             print("---Custom retriever found. ROUTING TO RAG---")
             return RETRIEVE
 
         print("---No custom retriever. Using LLM router.---")
         try:
-            source = question_router.invoke({"question": state["question"]})
-            routing_decision = WEBSEARCH if source.datasource == "web_search" else RETRIEVE
+            source = question_router.invoke({"question": state.get("question", "")})
+            # Be defensive: if source has no datasource, fall back to web
+            datasource = getattr(source, "datasource", None)
+            routing_decision = WEBSEARCH if datasource == "web_search" else RETRIEVE
             print(f"---LLM ROUTER DECISION: {routing_decision}---")
             return routing_decision
         except Exception as e:
