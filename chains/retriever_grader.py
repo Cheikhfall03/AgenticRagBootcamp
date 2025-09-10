@@ -7,7 +7,11 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda
 import os
-
+llm = ChatGroq(
+    model="openai/gpt-oss-20b",
+    temperature=0.0,
+    api_key=os.getenv("GROQ_API_KEY")
+)
 class GradeDocuments(BaseModel):
     """Binary score for relevance check on retrieved documents."""
 
