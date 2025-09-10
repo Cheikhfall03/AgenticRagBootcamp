@@ -64,6 +64,7 @@ if not os.path.exists(TEMP_DIR):
 
 # --- System Initialization ---
 try:
+    rag_system = AdaptiveRAGSystem()
     rag_system_instance = rag_system
     system_status = "✅ System Operational"
     system_class = "status-success"
