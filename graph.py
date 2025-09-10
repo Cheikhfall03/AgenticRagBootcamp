@@ -56,15 +56,23 @@ class AdaptiveRAGSystem:
         question = state["question"]
         try:
             source: RouteQuery = question_router.invoke({"question": question})
-            if source.datasource == WEBSEARCH:
+            print(f"📌 Décision de routage brute: {source}")
+            
+            if source.datasource == WEBSEARCH:  # WEBSEARCH = "web_search"
                 print("➡️ Décision: La question nécessite une recherche web.")
                 return WEBSEARCH
-            elif source.datasource == "vectorstore":
+            elif source.datasource == RETRIEVE:  # RETRIEVE = "vectorstore"
                 print("➡️ Décision: La question concerne les documents fournis.")
                 return RETRIEVE
+            else:
+                print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
+                return RETRIEVE
+
         except Exception as e:
-            print(f"⚠️ Erreur de routage: {e}. Par défaut, on utilise la récupération de documents.")
+            print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
+            print("➡️ Fallback: récupération de documents.")
             return RETRIEVE
+
 
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
         print("---NŒUD: RÉCUPÉRATION DE DOCUMENTS---")
