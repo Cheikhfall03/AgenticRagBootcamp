@@ -52,7 +52,7 @@ hallucination_prompt = ChatPromptTemplate.from_messages([
 
 # ---------------------------
 # 4. Parser (inchangé)
-structured_llm_rewriter = llm.with_structured_output(RewriteQuestion)
+structured_llm_rewriter = llm.with_structured_output(GradeHallucinations)
 ---------------------------
 
 # ---------------------------
