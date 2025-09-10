@@ -39,5 +39,4 @@ structured_llm_rewriter = llm.with_structured_output(RouteQuery)
 question_router = (
     route_prompt 
     | structured_llm_rewriter
-    | StrOutputParser
 )
