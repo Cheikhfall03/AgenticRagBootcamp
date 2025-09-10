@@ -1,14 +1,12 @@
-# hallucination_grader.py
+# chains/hallucination_grader.py (Version Corrigée)
 
 from pydantic import BaseModel, Field
-from langchain import hub
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
-import os
 
 # ---------------------------
-# 1. Définition du schéma Pydantic
+# 1. Schéma Pydantic (inchangé)
 # ---------------------------
 class GradeHallucinations(BaseModel):
     """Binaire : évalue si la génération est fidèle aux documents"""
@@ -17,21 +15,21 @@ class GradeHallucinations(BaseModel):
     )
 
 # ---------------------------
-# 2. Chargement du LLM
+# 2. LLM (inchangé)
 # ---------------------------
 llm = ChatGroq(
-    model="openai/gpt-oss-20b",
+    model="openai/gpt-oss-20b", # Note: Ce modèle peut être remplacé par un plus récent comme "llama3-8b-8192" pour de meilleures performances
     temperature=0
 )
 
 # ---------------------------
-# 3. Prompt clair avec contrainte JSON
+# 3. Prompt (inchangé)
 # ---------------------------
 system = """You are a grader assessing whether an LLM generation is grounded in / supported by a set of retrieved facts.
 
 - If the generation is fully supported by the retrieved facts, respond with: {"binary_score": true}
 - If the generation contains hallucinations or is not supported, respond with: {"binary_score": false}
-Only output valid JSON, nothing else.
+Only output a valid JSON object, nothing else.
 """
 
 hallucination_prompt = ChatPromptTemplate.from_messages([
@@ -40,11 +38,17 @@ hallucination_prompt = ChatPromptTemplate.from_messages([
 ])
 
 # ---------------------------
-# 4. Parser JSON fiable
+# 4. Parser (inchangé)
 # ---------------------------
 parser = JsonOutputParser(pydantic_object=GradeHallucinations)
 
 # ---------------------------
-# 5. Chaîne finale (prompt -> llm -> parser)
+# 5. Chaîne finale (CORRIGÉE)
 # ---------------------------
-hallucination_grader = hallucination_prompt | llm | parser
+# On force le LLM à répondre en format JSON en utilisant .bind()
+# C'est la correction clé pour éviter l'erreur 'tool_use_failed'.
+hallucination_grader = (
+    hallucination_prompt 
+    | llm.bind(response_format={"type": "json_object"}) 
+    | parser
+)
