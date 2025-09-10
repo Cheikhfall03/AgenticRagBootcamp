@@ -47,7 +47,7 @@ class AdaptiveRAGSystem:
         self.app = self.workflow.compile(checkpointer=memory)
         print("✅ Graphe LangGraph compilé avec succès.")
 
-    def _route_question(self, state: GraphState) -> str:
+    def _route_question(self, state: GraphState) -> Dict[str, Any]:
         """
         Route la question vers la recherche web ou la récupération de documents
         en se basant sur la nature de la question.
@@ -60,13 +60,18 @@ class AdaptiveRAGSystem:
             
             if source.datasource == WEBSEARCH:  # WEBSEARCH = "web_search"
                 print("➡️ Décision: La question nécessite une recherche web.")
-                return WEBSEARCH
+                return {"route": WEBSEARCH}
             elif source.datasource == RETRIEVE:  # RETRIEVE = "vectorstore"
                 print("➡️ Décision: La question concerne les documents fournis.")
-                return RETRIEVE
+                return {"route": RETRIEVE}
             else:
                 print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
-                return RETRIEVE
+                return {"route": RETRIEVE}
+
+    except Exception as e:
+        print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
+        print("➡️ Fallback: récupération de documents.")
+        return {"route": RETRIEVE}
 
         except Exception as e:
             print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
