@@ -53,7 +53,6 @@ hallucination_prompt = ChatPromptTemplate.from_messages([
 # ---------------------------
 # 4. Parser (inchangé)
 # ---------------------------
-parser = JsonOutputParser(pydantic_object=GradeHallucinations)
 
 # ---------------------------
 # 5. Chaîne finale (CORRIGÉE)
@@ -63,5 +62,5 @@ parser = JsonOutputParser(pydantic_object=GradeHallucinations)
 hallucination_grader = (
     hallucination_prompt 
     | llm.bind(response_format={"type": "json_object"}) 
-    | parser
+    | 
 )
