@@ -15,6 +15,7 @@ from chains.router_query import question_router, RouteQuery
 from chains.hallucination_grader import hallucination_grader
 from nodes.generate import generate
 from nodes.query_rewrite import query_rewrite
+from nodes.web_search import web_search # Using the external node
 from Node_constant import RETRIEVE, GRADE_DOCUMENTS, GENERATE, WEBSEARCH, QUERY_REWRITE, ROUTE_QUESTION
 from state import GraphState
 
@@ -40,7 +41,7 @@ class AdaptiveRAGSystem:
             self.default_retriever = None
 
         self.current_retriever = self.default_retriever
-        self.tavily_tool = TavilySearch(max_results=5)
+        # self.tavily_tool is no longer needed here, it's in nodes/web_search.py
         self._setup_workflow()
         memory = MemorySaver()
         self.app = self.workflow.compile(checkpointer=memory)
@@ -114,25 +115,8 @@ class AdaptiveRAGSystem:
                 print("⛔ Échec après réécriture. Passage à la recherche web comme dernier recours.")
                 return WEBSEARCH
 
-    def _web_search(self, state: GraphState):
-        print("---NŒUD: RECHERCHE WEB---")
-        question = state["question"]
-        documents = state.get("documents", [])
-        try:
-            time.sleep(0.5)
-            search_output = self.tavily_tool.invoke(question)
-            results_list = []
-            if isinstance(search_output, dict) and 'results' in search_output:
-                results_list = search_output['results']
-                print(f"🔍 {len(results_list)} résultats extraits de Tavily.")
-            elif isinstance(search_output, list):
-                results_list = search_output
-            web_docs = [Document(page_content=res.get("content", ""), metadata={"source": res.get("url", "N/A")}) for res in results_list if isinstance(res, dict)]
-            print(f"✅ {len(web_docs)} documents créés à partir de la recherche web.")
-            return {"documents": documents + web_docs, "question": question}
-        except Exception as e:
-            print(f"❌ ERREUR dans la recherche Tavily: {e}")
-            return {"documents": documents, "question": question}
+    # The _web_search method has been removed from the class.
+    # The graph will now use the imported web_search function from nodes/web_search.py
 
     def _grade_generation(self, state: GraphState) -> str:
         print("---NŒUD: ÉVALUATION DE LA GÉNÉRATION---")
@@ -174,7 +158,7 @@ class AdaptiveRAGSystem:
         self.workflow.add_node(RETRIEVE, self._retrieve_documents)
         self.workflow.add_node(GRADE_DOCUMENTS, self._grade_documents)
         self.workflow.add_node(QUERY_REWRITE, query_rewrite)
-        self.workflow.add_node(WEBSEARCH, self._web_search)
+        self.workflow.add_node(WEBSEARCH, web_search) # Pointing to the imported function
         self.workflow.add_node(GENERATE, generate)
         
         # Le point d'entrée est maintenant le routeur
