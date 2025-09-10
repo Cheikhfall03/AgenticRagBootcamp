@@ -234,7 +234,7 @@ class AdaptiveRAGSystem:
             "generation_count": 0,
             "documents": [],
             "generation": ""
-            "web_search": false
+            "web_search": web_search
         }
 
         print(f"--- Lancement du graphe pour la question: '{question}' ---")
