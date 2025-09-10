@@ -211,7 +211,7 @@ class AdaptiveRAGSystem:
 rag_system = AdaptiveRAGSystem()
 
 # <-- MODIFIÉ : Ajout de 'config: Optional[Dict] = None' pour relayer le paramètre
-def ask_questions(question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
+def ask_question(question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
     """Convenience function to ask a question"""
     # <-- MODIFIÉ : Passage de 'config' à la méthode de la classe
     return rag_system.ask_question(question, retriever=retriever, config=config)
