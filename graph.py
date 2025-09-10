@@ -1,308 +1,240 @@
-"""
-Modular RAG System for easy integration with Streamlit and other applications
-"""
-
-from dotenv import load_dotenv
-from langgraph.graph import END, StateGraph
-from chains.answer_grader import answer_grader
-from chains.retriever_grader import retrieval_grader
-from Node_constant import RETRIEVE, GRADE_DOCUMENTS, GENERATE, WEBSEARCH, QUERY_REWRITE
-from nodes.generate import generate
-from chains.router_query import question_router
-from chains.hallucination_grader import hallucination_grader
-from nodes.web_search import web_search
-from nodes.query_rewrite import query_rewrite
-from typing import Dict, Any, Optional
+# graph.py (Version Corrigée)
 import time
 import traceback
+from typing import Dict, Any, Optional
+from dotenv import load_dotenv
+from langgraph.graph import END, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
-from state import GraphState
-from nodes.retriever import set_global_retriever
 
-# Load environment variables
+# --- Import des composants du graphe ---
+from chains.answer_grader import answer_grader
+from chains.retriever_grader import retrieval_grader
+from chains.router_query import question_router
+from chains.hallucination_grader import hallucination_grader
+from nodes.generate import generate
+from nodes.web_search import web_search
+from nodes.query_rewrite import query_rewrite
+from Node_constant import RETRIEVE, GRADE_DOCUMENTS, GENERATE, WEBSEARCH, QUERY_REWRITE
+from state import GraphState
+
+# --- Import de l'initialiseur du retriever par défaut ---
+from ingestion import initialize_default_retriever
+
 load_dotenv()
 
 class AdaptiveRAGSystem:
-    """
-    Modular Adaptive RAG System with Self-Reflection
-    """
+    """Système RAG modulaire, robuste et centralisé."""
     
     def __init__(self):
-        """Initialize the RAG system"""
-        self.app = None
-        self.current_retriever = None
+        """Initialise le système RAG avec un retriever par défaut."""
+        self.workflow = StateGraph(GraphState)
+        
+        # --- Initialisation du retriever par défaut ---
+        try:
+            self.default_retriever = initialize_default_retriever()
+        except Exception as e:
+            print(f"❌ ERREUR CRITIQUE: Impossible d'initialiser le retriever par défaut: {e}")
+            self.default_retriever = None
+            
+        self.current_retriever = self.default_retriever
+        
+        # --- Construction du graphe ---
         self._setup_workflow()
         
-        # Set up global retriever reference
-        self.set_global_retriever = set_global_retriever
-    
-    def _call_retriever(self, retriever, question: str):
-        """
-        Try calling retriever with common method names:
-        - get_relevant_documents(query)
-        - get_relevant_texts(query)
-        - retrieve(query)
-        - invoke(query)
-        Returns a list (possibly empty) of Document-like objects.
-        """
-        if retriever is None:
-            return []
-        # Try common methods in order
-        for method_name in ("get_relevant_documents", "get_relevant_texts", "retrieve", "invoke"):
-            method = getattr(retriever, method_name, None)
-            if callable(method):
-                try:
-                    result = method(question)
-                    # Many retrievers return iterables or lists of Document objects
-                    return result if result is not None else []
-                except Exception as e:
-                    # continue trying other method names
-                    print(f"⚠️ Retriever method '{method_name}' raised error: {e}")
-                    continue
-        # If no method worked, try calling as a callable (some custom wrappers)
-        if callable(retriever):
-            try:
-                return retriever(question)
-            except Exception as e:
-                print(f"⚠️ Calling retriever as callable failed: {e}")
-        print("⚠️ No usable method found on retriever. Returning empty list.")
-        return []
+        # --- Compilation du graphe ---
+        memory = MemorySaver()
+        self.app = self.workflow.compile(checkpointer=memory)
+        print("✅ Graphe LangGraph compilé avec succès.")
 
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
         """
-        Retrieve documents using the current retriever.
-        This replaces the external retrieve node to ensure retriever access.
+        Récupère les documents en utilisant le retriever actuellement actif (soit par défaut, soit personnalisé).
+        Ce nœud est maintenant interne à la classe et fiable.
         """
-        print("---RETRIEVE DOCUMENTS---")
-        question = state.get("question", "")
+        print("---NŒUD: RÉCUPÉRATION DE DOCUMENTS---")
+        question = state["question"]
         
-        documents = []
-        if self.current_retriever is not None:
-            print("📁 Using provided retriever (uploaded documents or vectorstore)")
-            try:
-                documents = self._call_retriever(self.current_retriever, question)
-                # Ensure we always return an iterable/list
-                documents = list(documents) if documents is not None else []
-                print(f"✅ Retrieved {len(documents)} documents from retriever")
-            except Exception as e:
-                print(f"❌ Error retrieving from retriever: {e}")
-                documents = []
-        else:
-            print("⚠️ No custom retriever provided. Returning empty list.")
-            documents = []
+        if self.current_retriever is None:
+            print("⚠️ Aucun retriever n'est disponible. Retourne une liste vide.")
+            return {"documents": []}
             
-        return {"documents": documents}
+        try:
+            print(f"🔎 Utilisation du retriever: {type(self.current_retriever)}")
+            documents = self.current_retriever.invoke(question)
+            print(f"✅ {len(documents)} document(s) récupéré(s).")
+            return {"documents": documents}
+        except Exception as e:
+            print(f"❌ Erreur lors de la récupération de documents: {e}")
+            return {"documents": []}
+
+    # ... (les autres fonctions du graphe comme _grade_documents, etc. restent les mêmes) ...
 
     def _grade_documents(self, state: GraphState) -> Dict[str, Any]:
-        """
-        Grade documents for relevance to the question.
-        """
-        print("---CHECK DOCUMENT RELEVANCE TO QUESTION---")
-        question = state.get("question", "")
-        documents = state.get("documents", [])
+        print("---NŒUD: ÉVALUATION DE LA PERTINENCE DES DOCUMENTS---")
+        question = state["question"]
+        documents = state["documents"]
         
         if not documents:
-            print("---NO DOCUMENTS TO GRADE---")
             return {"documents": []}
         
         filtered_docs = []
         for d in documents:
             try:
-                # handle Document objects (with page_content) or raw strings
-                doc_text = getattr(d, "page_content", None) or getattr(d, "text", None) or str(d)
-                score = retrieval_grader.invoke(
-                    {"question": question, "document": doc_text}
-                )
-                # The grader returns a Pydantic model with a boolean 'binary_score'
-                grade = getattr(score, "binary_score", False)
-                
-                if grade:
-                    print("---GRADE: DOCUMENT RELEVANT---")
+                doc_text = getattr(d, "page_content", str(d))
+                score = retrieval_grader.invoke({"question": question, "document": doc_text})
+                if getattr(score, "binary_score", False):
+                    print("✅ Document pertinent.")
                     filtered_docs.append(d)
                 else:
-                    print("---GRADE: DOCUMENT NOT RELEVANT---")
+                    print("⛔ Document non pertinent.")
             except Exception as e:
-                print(f"---ERROR GRADING DOCUMENT: {e}---")
-                # If grading fails, include the document to be safe
-                filtered_docs.append(d)
-        
-        print(f"---FILTERED TO {len(filtered_docs)} RELEVANT DOCUMENTS---")
+                print(f"⚠️ Erreur d'évaluation, inclusion par défaut: {e}")
+                filtered_docs.append(d) # En cas d'erreur, on garde le doc par sécurité
+                
         return {"documents": filtered_docs}
+    
+    def _route_question(self, state: GraphState) -> str:
+        """
+        Route toujours vers la récupération de documents, car nous avons toujours un retriever.
+        """
+        print("---NŒUD: ROUTAGE DE LA QUESTION---")
+        print("➡️ Toujours router vers RETRIEVE car un retriever (défaut ou custom) est toujours disponible.")
+        return RETRIEVE
+
+    def _decide_to_generate(self, state: GraphState) -> str:
+        """
+        Décide s'il faut générer une réponse, réécrire la question, ou passer à la recherche web.
+        """
+        print("---NŒUD: DÉCISION POST-RÉCUPÉRATION---")
+        if state["documents"]:
+            print("✅ Documents pertinents trouvés. Passage à la génération.")
+            return GENERATE
+        else:
+            if state["query_rewrite_count"] < 1: # On autorise 1 réécriture
+                 print("⛔ Aucun document pertinent. Tentative de réécriture de la question.")
+                 return QUERY_REWRITE
+            else:
+                 print("⛔ Échec après réécriture. Passage à la recherche web comme dernier recours.")
+                 return WEBSEARCH
+    
+    def _grade_generation(self, state: GraphState) -> str:
+        """Évalue la génération pour les hallucinations et la pertinence."""
+        print("---NŒUD: ÉVALUATION DE LA GÉNÉRATION---")
+        question = state["question"]
+        documents = state["documents"]
+        generation = state["generation"]
+        
+        if not documents: # Si on vient du web search, on ne peut pas vérifier les hallucinations
+            print("⚠️ Impossible de vérifier les hallucinations (source web). On vérifie la pertinence de la réponse.")
+            score = answer_grader.invoke({"question": question, "generation": generation})
+            if getattr(score, "binary_score", False):
+                print("✅ Réponse jugée utile.")
+                return END
+            else:
+                print("⛔ Réponse jugée non utile. Fin.")
+                return END # On pourrait boucler, mais finissons ici pour éviter les boucles infinies.
+
+        docs_texts = [getattr(d, "page_content", str(d)) for d in documents]
+        hallucination_score = hallucination_grader.invoke({"documents": docs_texts, "generation": generation})
+        
+        if not getattr(hallucination_score, "binary_score", False):
+            print("⛔ HALLUCINATION DÉTECTÉE ! Tentative de re-génération.")
+            if state["generation_count"] < 1:
+                return GENERATE # On re-génère une fois
+            else:
+                print("⛔ Échec de la re-génération. Fin.")
+                return END
+                
+        print("✅ Aucune hallucination détectée.")
+        answer_score = answer_grader.invoke({"question": question, "generation": generation})
+        if getattr(answer_score, "binary_score", False):
+            print("✅ Réponse jugée utile.")
+            return END
+        else:
+            print("⛔ Réponse jugée non utile, mais non hallucinatoire. Fin.")
+            return END
 
     def _setup_workflow(self):
-        """Set up the LangGraph workflow"""
-        self.workflow = StateGraph(GraphState)
+        """Construit et connecte les nœuds du graphe LangGraph."""
+        self.workflow.set_entry_point(RETRIEVE) # <--- POINT D'ENTRÉE SIMPLIFIÉ
         
-        # Add nodes - using internal methods to ensure retriever access
         self.workflow.add_node(RETRIEVE, self._retrieve_documents)
         self.workflow.add_node(GRADE_DOCUMENTS, self._grade_documents)
-        self.workflow.add_node(GENERATE, generate)
-        self.workflow.add_node(WEBSEARCH, web_search)
         self.workflow.add_node(QUERY_REWRITE, query_rewrite)
+        self.workflow.add_node(WEBSEARCH, web_search)
+        self.workflow.add_node(GENERATE, generate)
         
-        # Set conditional entry point
-        self.workflow.set_conditional_entry_point(
-            self._route_question,
-            {
-                WEBSEARCH: WEBSEARCH, 
-                RETRIEVE: RETRIEVE
-            },
-        )
-        
-        # Add edges
+        # --- Définition des chemins (edges) ---
         self.workflow.add_edge(RETRIEVE, GRADE_DOCUMENTS)
         self.workflow.add_edge(QUERY_REWRITE, RETRIEVE)
         self.workflow.add_edge(WEBSEARCH, GENERATE)
         
-        # Add conditional edges
         self.workflow.add_conditional_edges(
-            GRADE_DOCUMENTS, 
-            self._decide_to_rewrite_query,
+            GRADE_DOCUMENTS,
+            self._decide_to_generate,
             {
-                QUERY_REWRITE: QUERY_REWRITE, 
-                GENERATE: GENERATE, 
+                GENERATE: GENERATE,
+                QUERY_REWRITE: QUERY_REWRITE,
                 WEBSEARCH: WEBSEARCH
-            },
+            }
         )
-        
         self.workflow.add_conditional_edges(
-            GENERATE, 
-            self._grade_generation_grounded_in_documents_and_question,
+            GENERATE,
+            self._grade_generation,
             {
-                "not supported": GENERATE, 
-                "useful": END, 
-                "not useful": QUERY_REWRITE, 
-                "fail": END
-            },
+                GENERATE: GENERATE,
+                END: END
+            }
         )
         
-        print("--- Compiling LangGraph workflow ---")
-        memory = MemorySaver()
-        self.app = self.workflow.compile(checkpointer=memory)
-        print("--- Workflow compiled successfully ---")
-
-    def _grade_generation_grounded_in_documents_and_question(self, state: GraphState) -> str:
-        """Grades the generation for hallucinations and relevance"""
-        print("---CHECK HALLUCINATIONS---")
-        question = state.get("question", "")
-        documents = state.get("documents", [])
-        generation = state.get("generation", "")
-        generation_count = state.get("generation_count", 0)
-
-        try:
-            # Provide raw text fallback for grader
-            docs_texts = [getattr(d, "page_content", None) or getattr(d, "text", None) or str(d) for d in documents]
-            score = hallucination_grader.invoke({"documents": docs_texts, "generation": generation})
-
-            if not getattr(score, "binary_score", False):
-                print("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
-                return "not supported" if generation_count < 3 else "fail"
-
-            print("---DECISION: GENERATION IS GROUNDED IN DOCUMENTS---")
-            score = answer_grader.invoke({"question": question, "generation": generation})
-            return "useful" if getattr(score, "binary_score", False) else "not useful"
-            
-        except Exception as e:
-            print(f"---ERROR IN GRADING: {e}---")
-            return "fail"
-
-    def _route_question(self, state: GraphState) -> str:
-        """Route the question to appropriate processing path"""
-        print("---ROUTE QUESTION---")
-        
-        # If retriever present, route to RETRIEVE (RAG path)
-        if self.current_retriever is not None:
-            print("---Custom retriever found. ROUTING TO RAG---")
-            return RETRIEVE
-
-        print("---No custom retriever. Using LLM router.---")
-        try:
-            source = question_router.invoke({"question": state.get("question", "")})
-            # Be defensive: if source has no datasource, fall back to web
-            datasource = getattr(source, "datasource", None)
-            routing_decision = WEBSEARCH if datasource == "web_search" else RETRIEVE
-            print(f"---LLM ROUTER DECISION: {routing_decision}---")
-            return routing_decision
-        except Exception as e:
-            print(f"---ERROR IN ROUTING: {e}. DEFAULTING TO WEBSEARCH---")
-            return WEBSEARCH
-
-    def _decide_to_rewrite_query(self, state: GraphState) -> str:
-        """Decides whether to rewrite the query, generate an answer, or try a web search."""
-        print("---ASSESSING DOCUMENT RELEVANCE---")
-        
-        documents = state.get("documents", [])
-        query_rewrite_count = state.get("query_rewrite_count", 0)
-        
-        if not documents:
-            if query_rewrite_count >= 2:
-                print("---DECISION: REWRITE LIMIT REACHED. FALLING BACK TO WEB SEARCH.---")
-                return WEBSEARCH
-            else:
-                print("---DECISION: NO RELEVANT DOCUMENTS FOUND. REWRITING QUERY.---")
-                return QUERY_REWRITE
-        else:
-            print(f"---DECISION: {len(documents)} RELEVANT DOCUMENTS FOUND. PROCEEDING TO GENERATE.---")
-            return GENERATE
-
     def ask_question(self, question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
-        """Ask a question and get an answer from the RAG system"""
+        """
+        Point d'entrée principal pour poser une question au système.
+        Gère intelligemment le retriever à utiliser.
+        """
         if not self.app:
-            raise Exception("RAG system not initialized")
+            return {"success": False, "answer": "Erreur: Le système RAG n'est pas compilé."}
+            
+        # --- LOGIQUE CENTRALE CORRIGÉE ---
+        # Si un retriever est fourni (fichiers uploadés), on l'utilise.
+        # Sinon, on utilise le retriever par défaut initialisé au démarrage.
+        self.current_retriever = retriever if retriever is not None else self.default_retriever
         
-        # Set both instance and global retriever
-        self.current_retriever = retriever
-        if retriever:
-            self.set_global_retriever(retriever)
-        else:
-            print("⚠️ No retriever provided - will use web search if needed")
+        if self.current_retriever is None:
+             return {"success": False, "answer": "Erreur: Aucun retriever n'est disponible (ni par défaut, ni personnalisé)."}
+
+        initial_state = {"question": question, "query_rewrite_count": 0, "generation_count": 0}
         
-        initial_state = {
-            "question": question,
-            "generation": "",
-            "documents": [],
-            "file_paths": [],
-            "web_search": False,
-            "query_rewrite_count": 0,
-            "generation_count": 0,
-        }
-        
-        print(f"--- Invoking RAG workflow for question: {question} ---")
+        print(f"--- Lancement du graphe pour la question: '{question}' ---")
         start_time = time.time()
         
+        final_state = None
         try:
-            result = self.app.invoke(initial_state, config=config)
+            for event in self.app.stream(initial_state, config=config, stream_mode="values"):
+                final_state = event
+            
             end_time = time.time()
-            print("--- Workflow invocation completed successfully ---")
+            
+            answer = final_state.get("generation", "Aucune réponse n'a pu être générée.")
+            docs_used = final_state.get("documents", [])
             
             return {
                 "success": True,
-                "answer": result.get("generation", "No answer generated"),
-                "question": question,
+                "answer": answer,
                 "processing_time": round(end_time - start_time, 2),
-                "documents_used": len(result.get("documents", [])),
-                "query_rewrites": result.get("query_rewrite_count", 0),
-                "documents": result.get("documents", []),
+                "documents_used": len(docs_used),
+                "query_rewrites": final_state.get("query_rewrite_count", 0),
+                "documents": docs_used,
             }
-            
         except Exception as e:
             end_time = time.time()
-            print(f"--- Workflow invocation failed: {e} ---")
+            print(f"--- ERREUR D'EXÉCUTION DU GRAPHE: {e} ---")
             traceback.print_exc()
-            
             return {
                 "success": False,
-                "answer": f"Error processing question: {str(e)}",
-                "question": question,
+                "answer": f"Une erreur est survenue: {e}",
                 "processing_time": round(end_time - start_time, 2),
-                "documents_used": 0,
-                "query_rewrites": 0,
-                "documents": [],
             }
 
-# Singleton instance for easy import
+# --- Instance unique (Singleton) pour l'application ---
 rag_system = AdaptiveRAGSystem()
-
-def ask_question(question: str, retriever: Optional[Any] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
-    """Convenience function to ask a question"""
-    return rag_system.ask_question(question, retriever=retriever, config=config)
