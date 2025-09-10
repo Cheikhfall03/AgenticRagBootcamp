@@ -192,6 +192,7 @@ if prompt := st.chat_input("💭 Ask your question..."):
                 {"question": prompt}, # Pass only the question
                 config=config
             ):
+            
                 # Check the keys of each event from the stream
                 if "generation" in event:
                     # If the 'generation' key is present, yield its content
