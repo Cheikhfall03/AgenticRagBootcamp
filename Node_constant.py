@@ -3,4 +3,4 @@ GRADE_DOCUMENTS = "grade"
 GENERATE = "generate"
 QUERY_REWRITE="query_rewrite"
 WEBSEARCH = "web_search"
-ROUTE_QUESTION = "router_query"
+ROUTE_QUESTION = "route_question"   # cohérent avec graph.py
