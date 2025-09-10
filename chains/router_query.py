@@ -1,35 +1,32 @@
-### Router
+# chains/router_query.py (Version Corrigée)
 
 from typing import Literal
-
-from langchain_core.prompts import ChatPromptTemplate
-from  pydantic import BaseModel, Field
+from pydantic import BaseModel, Field
 from langchain_groq import ChatGroq
+from langchain_core.output_parsers import JsonOutputParser # Ajout de l'import
+from langchain_core.prompts import ChatPromptTemplate
 import os
 
-# Data model
+# Modèle Pydantic (inchangé)
 class RouteQuery(BaseModel):
-    """Route a user query to the most relevant datasource."""
-
+    """Route une question de l'utilisateur vers la source de données la plus pertinente."""
     datasource: Literal["vectorstore", "web_search"] = Field(
         ...,
-        description="Given a user question choose to route it to web search or a vectorstore.",
+        description="Étant donné une question, choisir de la router vers 'web_search' ou 'vectorstore'.",
     )
 
-
-# LLM with function call
-
+# LLM (sans .with_structured_output)
 llm = ChatGroq(
-    model="openai/gpt-oss-20b",
-    temperature=0.0,
-    api_key=os.getenv("GROQ_API_KEY")
+    # Pour de meilleures performances, envisagez "llama3-8b-8192"
+    model="openai/gpt-oss-20b", 
+    temperature=0.0
 )
-structured_llm_router = llm.with_structured_output(RouteQuery)
 
-# Prompt
-system = """You are an expert at routing a user question to a vectorstore or web search.
-The vectorstore contains documents related to agents, prompt engineering, and adversarial attacks.
-Use the vectorstore for questions on these topics. Otherwise, use web-search."""
+# Prompt (inchangé, il est bien formulé)
+system = """Vous êtes un expert pour router une question utilisateur vers une base de données vectorielle (vectorstore) ou une recherche web (web_search).
+La base de données vectorielle contient des documents sur les agents IA, l'ingénierie des prompts et les attaques adverses.
+Utilisez la 'vectorstore' pour les questions sur ces sujets. Pour tout le reste, utilisez 'web_search'."""
+
 route_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system),
@@ -37,4 +34,12 @@ route_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-question_router = route_prompt | structured_llm_router
+# Parser JSON
+parser = JsonOutputParser(pydantic_object=RouteQuery)
+
+# Chaîne Finale (CORRIGÉE avec .bind() et le parser)
+question_router = (
+    route_prompt 
+    | llm.bind(response_format={"type": "json_object"}) 
+    | parser
+)
