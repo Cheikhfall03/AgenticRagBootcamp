@@ -52,7 +52,8 @@ hallucination_prompt = ChatPromptTemplate.from_messages([
 
 # ---------------------------
 # 4. Parser (inchangé)
-# ---------------------------
+structured_llm_rewriter = llm.with_structured_output(RewriteQuestion)
+---------------------------
 
 # ---------------------------
 # 5. Chaîne finale (CORRIGÉE)
@@ -61,6 +62,6 @@ hallucination_prompt = ChatPromptTemplate.from_messages([
 # C'est la correction clé pour éviter l'erreur 'tool_use_failed'.
 hallucination_grader = (
     hallucination_prompt 
-    | llm
+    | llm.structured_llm_rewriter
     | StrOutputParser
 )
