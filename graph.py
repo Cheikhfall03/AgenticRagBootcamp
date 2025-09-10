@@ -167,7 +167,8 @@ class AdaptiveRAGSystem:
         self.workflow.add_node(QUERY_REWRITE, query_rewrite)
         self.workflow.add_node(WEBSEARCH, web_search) # Pointing to the imported function
         self.workflow.add_node(GENERATE, generate)
-        
+        self.workflow.add_node(ROUTE_QUESTION, _route_question)
+
         # Le point d'entrée est maintenant le routeur
         self.workflow.set_entry_point(ROUTE_QUESTION)
 
