@@ -229,7 +229,16 @@ if prompt := st.chat_input("💭 Posez votre question..."):
 
         if retriever_obj:
             st.markdown('<div class="status-indicator status-info">📚 Utilisation de vos documents...</div>', unsafe_allow_html=True)
-            logging.info(f"✅ Retriever trouvé dans session state. Type: {type(retriever_obj)}. Invocation RAG.")
+            logging.info(f"✅ Retriever trouvé dans session state. Type: {type(retriever_obj)}")
+            
+            # Test the retriever before using it
+            try:
+                test_docs = retriever_obj.invoke("test")
+                logging.info(f"✅ Retriever test successful - can retrieve {len(test_docs)} documents")
+            except Exception as e:
+                logging.error(f"❌ Retriever test failed: {e}")
+                st.error(f"Erreur avec le retriever: {e}")
+            
             with st.spinner("Traitement avec NewsAI..."):
                 response_data = rag_system_instance.ask_question(prompt, retriever=retriever_obj, config=config)
         else:
