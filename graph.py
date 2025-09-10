@@ -47,36 +47,27 @@ class AdaptiveRAGSystem:
         self.app = self.workflow.compile(checkpointer=memory)
         print("✅ Graphe LangGraph compilé avec succès.")
 
-    def _route_question(self, state: GraphState) -> Dict[str, Any]:
-        """
-        Route la question vers la recherche web ou la récupération de documents
-        en se basant sur la nature de la question.
-        """
-        print("---NŒUD: ROUTAGE DE LA QUESTION---")
-        question = state["question"]
-        try:
-            source: RouteQuery = question_router.invoke({"question": question})
-            print(f"📌 Décision de routage brute: {source}")
-            
-            if source.datasource == WEBSEARCH:  # WEBSEARCH = "web_search"
-                print("➡️ Décision: La question nécessite une recherche web.")
-                return {"route": WEBSEARCH}
-            elif source.datasource == RETRIEVE:  # RETRIEVE = "vectorstore"
-                print("➡️ Décision: La question concerne les documents fournis.")
-                return {"route": RETRIEVE}
-            else:
-                print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
-                return {"route": RETRIEVE}
-
-        except Exception as e:
-            print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
-            print("➡️ Fallback: récupération de documents.")
-            return {"route": RETRIEVE}
-
-        except Exception as e:
-            print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
-            print("➡️ Fallback: récupération de documents.")
-            return RETRIEVE
+        def _route_question(self, state: GraphState) -> str:
+            print("---NŒUD: ROUTAGE DE LA QUESTION---")
+            question = state["question"]
+            try:
+                source: RouteQuery = question_router.invoke({"question": question})
+                print(f"📌 Décision de routage brute: {source}")
+        
+                if source.datasource == WEBSEARCH:
+                    print("➡️ Décision: La question nécessite une recherche web.")
+                    return WEBSEARCH   # ✅ string
+                elif source.datasource == RETRIEVE:
+                    print("➡️ Décision: La question concerne les documents fournis.")
+                    return RETRIEVE    # ✅ string
+                else:
+                    print(f"⚠️ Datasource inconnue ({source.datasource}). Fallback sur vectorstore.")
+                    return RETRIEVE    # ✅ string
+        
+            except Exception as e:
+                print(f"⚠️ Erreur de routage pour la question '{question}': {e}")
+                print("➡️ Fallback: récupération de documents.")
+            return RETRIEVE        # ✅ string
 
 
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
@@ -178,14 +169,12 @@ class AdaptiveRAGSystem:
         self.workflow.set_entry_point(ROUTE_QUESTION)
 
         # Connexions conditionnelles depuis le routeur
-        self.workflow.add_conditional_edges(
-            ROUTE_QUESTION,
-            lambda x: x, # La sortie du nœud est directement le nom du prochain nœud
-            {
-                WEBSEARCH: WEBSEARCH,
-                RETRIEVE: RETRIEVE
-            }
-        )
+        workflow.add_conditional_edges(
+    "route_question",
+    self._route_question,
+    {WEBSEARCH: WEBSEARCH, RETRIEVE: RETRIEVE}
+)
+
         
         self.workflow.add_edge(RETRIEVE, GRADE_DOCUMENTS)
         self.workflow.add_edge(QUERY_REWRITE, RETRIEVE)
