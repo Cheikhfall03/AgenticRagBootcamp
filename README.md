@@ -45,7 +45,7 @@ The internal components (retrieval, evaluation, query rewriting) are now applied
 The project relies on a selection of cutting-edge models and technologies to ensure its performance.
 
 - **LLM Provider**: Groq
-- **Model Used**: `gemma2-9b-it` - Particularly effective for synthesis, generation, and text comprehension tasks
+- **Model Used**: `llama-3.1-8b-instant` - Particularly effective for synthesis, generation, and text comprehension tasks
 - **Embedding Model**: Hugging Face (`sentence-transformers/all-MiniLM-L6-v2`) - Used to vectorize uploaded document content
 - **Vector Database**: ChromaDB - Stores PDF document vectors to allow the system to "read" and understand content
 - **Web Search API**: Tavily AI - The search engine for finding the latest AI news
