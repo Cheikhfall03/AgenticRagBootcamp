@@ -5,7 +5,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 llm = ChatGroq(
-    model="gemma2-9b-it",
+    model="llama-3.1-8b-instant",
     temperature=0.0
 )
 class GradeHallucinations(BaseModel):
