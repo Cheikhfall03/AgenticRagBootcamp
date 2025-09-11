@@ -200,18 +200,28 @@ class AdaptiveRAGSystem:
         # ### MODIFIÉ ### : Déterminer quel retriever utiliser pour cet appel spécifique
         active_retriever = retriever if retriever is not None else self.default_retriever
         
-        # ### MODIFIÉ ### : Injecter le retriever actif dans l'état initial du graphe
+        # ### MODIFIÉ ### : Initial state SANS retriever
         initial_state = {
             "question": question,
             "query_rewrite_count": 0,
             "generation_count": 0,
             "documents": [],
             "generation": "",
-            "retriever": active_retriever  # <-- LA LIGNE CLÉ
+            "file_paths": [],
+            "web_search": False,
+            "route": "",  # Important pour éviter KeyError
         }
-        
+
+        # Injecter le retriever actif via config (et pas dans l’état)
+        if config is None:
+            config = {"configurable": {}}
+        if "configurable" not in config:
+            config["configurable"] = {}
+        config["configurable"]["retriever"] = active_retriever
+
         print(f"--- Lancement du graphe pour la question: '{question}' ---")
         return self.app.stream(initial_state, config=config)
+
 
 # --- Instance unique (Singleton) pour l'application ---
 rag_system = AdaptiveRAGSystem()
