@@ -1,3 +1,4 @@
+from chains.generation import generation_chain
 def generate(state: dict) -> dict:
     """
     Generates an answer using the retrieved documents and the user's question.
