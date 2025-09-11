@@ -7,7 +7,7 @@ from langchain_core.documents import Document
 # Initialize the language model
 llm = ChatGroq(
     temperature=0, 
-    model_name="llama3-8b-8192", # Or your preferred model
+    model_name="llama-3.1-8b-instant", # Or your preferred model
     api_key=os.environ.get("GROQ_API_KEY")
 )
 
