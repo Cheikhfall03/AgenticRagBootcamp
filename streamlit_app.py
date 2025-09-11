@@ -1,4 +1,4 @@
-# streamlit_app.py (Version Complète et Corrigée)
+# streamlit_app.py (Version Complète, Corrigée et Fonctionnelle)
 
 # --- Fix sqlite3 for chromadb ---
 try:
@@ -101,8 +101,8 @@ with st.sidebar:
                                 f.write(uploaded_file.getvalue())
                             file_paths.append(temp_path)
                         
-                        retriever = create_retriever_from_files(file_paths)
-                        st.session_state.retriever = retriever
+                        # Stocker uniquement les chemins dans session_state
+                        st.session_state["uploaded_files_paths"] = file_paths
                         st.session_state.document_names = [f.name for f in uploaded_files]
                         st.success("✅ Documents processed!")
                         st.balloons()
@@ -110,7 +110,7 @@ with st.sidebar:
                         st.error(f"❌ Error: {e}")
         with col2:
             if st.button("🗑️ Clear", use_container_width=True):
-                for key in ['retriever', 'document_names', 'messages']:
+                for key in ['uploaded_files_paths', 'document_names', 'messages']:
                     st.session_state.pop(key, None)
                 if os.path.exists(TEMP_DIR):
                     shutil.rmtree(TEMP_DIR)
@@ -156,7 +156,10 @@ if prompt := st.chat_input("💭 Ask your question..."):
         st.markdown(f'<div class="chat-message">{prompt}</div>', unsafe_allow_html=True)
 
     with st.chat_message("assistant"):
-        retriever_for_this_query = st.session_state.get("retriever")
+        retriever_for_this_query = None
+        if "uploaded_files_paths" in st.session_state:
+            retriever_for_this_query = create_retriever_from_files(st.session_state["uploaded_files_paths"])
+        
         status_text = "📚 Using your documents..." if retriever_for_this_query else "🌐 Using general knowledge..."
         st.markdown(f'<div class="status-indicator status-info">{status_text}</div>', unsafe_allow_html=True)
 
