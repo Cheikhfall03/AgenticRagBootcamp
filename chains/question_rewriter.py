@@ -17,7 +17,7 @@ class RewriteQuestion(BaseModel):
 
 # 3. LLM with structured output
 llm = ChatGroq(
-    model="openai/gpt-oss-20b",
+    model="gemma2-9b-it",
     temperature=0.0,
     api_key=os.getenv("GROQ_API_KEY")
 )
