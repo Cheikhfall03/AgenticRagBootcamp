@@ -25,4 +25,4 @@ class GraphState(TypedDict):
     query_rewrite_count: int
     generation_count: int
     route: str
-    retriever: Optional[Any]
+    #retriever: Optional[Any]
