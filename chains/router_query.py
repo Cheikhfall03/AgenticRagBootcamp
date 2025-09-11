@@ -18,7 +18,7 @@ class RouteQuery(BaseModel):
 # LLM (sans .with_structured_output)
 llm = ChatGroq(
     # Pour de meilleures performances, envisagez "llama3-8b-8192"
-    model="openai/gpt-oss-20b", 
+    model="gemma2-9b-it", 
     temperature=0.0
 )
 
