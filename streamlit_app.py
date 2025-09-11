@@ -1,4 +1,4 @@
-# streamlit_app.py (Version Complète, Corrigée et Fonctionnelle)
+# streamlit_app.py (Version Complète et Corrigée)
 
 # --- Fix sqlite3 for chromadb ---
 try:
@@ -101,7 +101,7 @@ with st.sidebar:
                                 f.write(uploaded_file.getvalue())
                             file_paths.append(temp_path)
                         
-                        # Stocker uniquement les chemins dans session_state
+                        # Stocker uniquement les chemins, ne pas stocker le retriever
                         st.session_state["uploaded_files_paths"] = file_paths
                         st.session_state.document_names = [f.name for f in uploaded_files]
                         st.success("✅ Documents processed!")
@@ -156,10 +156,11 @@ if prompt := st.chat_input("💭 Ask your question..."):
         st.markdown(f'<div class="chat-message">{prompt}</div>', unsafe_allow_html=True)
 
     with st.chat_message("assistant"):
+        # Re-créer le retriever à la volée
         retriever_for_this_query = None
         if "uploaded_files_paths" in st.session_state:
             retriever_for_this_query = create_retriever_from_files(st.session_state["uploaded_files_paths"])
-        
+
         status_text = "📚 Using your documents..." if retriever_for_this_query else "🌐 Using general knowledge..."
         st.markdown(f'<div class="status-indicator status-info">{status_text}</div>', unsafe_allow_html=True)
 
