@@ -69,13 +69,15 @@ class AdaptiveRAGSystem:
 
 # In graph.py
 
+ # In graph.py
+
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
         print("---NŒUD: RÉCUPÉRATION DE DOCUMENTS---")
         question = state["question"]
         retriever = state.get("retriever")
     
         if retriever is None:
-            print("⚠️ Aucun retriever n'est disponible dans l'état du graphe. Retourne une liste vide.")
+            print("⚠️ Aucun retriever n'est disponible. Retourne une liste vide.")
             # Ensure retriever is None in the output state
             return {"documents": [], "question": question, "retriever": None}
     
@@ -85,8 +87,8 @@ class AdaptiveRAGSystem:
             print(f"✅ {len(documents)} document(s) récupéré(s).")
             
             # THIS IS THE FIX 👇
-            # After using the retriever, set it to None in the state so the
-            # checkpointer can save the state without error.
+            # After using the retriever, set it to None in the state. This
+            # prevents the checkpointer from trying to serialize it.
             return {"documents": documents, "question": question, "retriever": None}
     
         except Exception as e:
