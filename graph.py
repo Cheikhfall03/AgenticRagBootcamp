@@ -67,6 +67,8 @@ class AdaptiveRAGSystem:
             print("➡️ Fallback: récupération de documents.")
             return {"next": RETRIEVE}
 
+# In graph.py
+
     def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
         print("---NŒUD: RÉCUPÉRATION DE DOCUMENTS---")
         question = state["question"]
@@ -74,7 +76,7 @@ class AdaptiveRAGSystem:
     
         if retriever is None:
             print("⚠️ Aucun retriever n'est disponible dans l'état du graphe. Retourne une liste vide.")
-            # MODIFIED: Ensure retriever is None in the output state as well
+            # Ensure retriever is None in the output state
             return {"documents": [], "question": question, "retriever": None}
     
         try:
@@ -82,16 +84,15 @@ class AdaptiveRAGSystem:
             documents = retriever.invoke(question)
             print(f"✅ {len(documents)} document(s) récupéré(s).")
             
-            # ### LA CORRECTION EST ICI ###
-            # After using the retriever, we set it to None in the state so the
-            # checkpointer doesn't try to serialize the complex object.
+            # THIS IS THE FIX 👇
+            # After using the retriever, set it to None in the state so the
+            # checkpointer can save the state without error.
             return {"documents": documents, "question": question, "retriever": None}
     
         except Exception as e:
             print(f"❌ Erreur lors de la récupération de documents: {e}")
-            # MODIFIED: Ensure retriever is None in the output state on error
+            # Also ensure retriever is None on error
             return {"documents": [], "question": question, "retriever": None}
-    # ... (Pas de changement dans _grade_documents, _decide_to_generate, _grade_generation)
     def _grade_documents(self, state: GraphState) -> Dict[str, Any]:
         print("---NŒUD: ÉVALUATION DE LA PERTINENCE DES DOCUMENTS---")
         question = state["question"]
