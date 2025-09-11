@@ -71,30 +71,30 @@ class AdaptiveRAGSystem:
 
  # In graph.py
 
-    def _retrieve_documents(self, state: GraphState) -> Dict[str, Any]:
-        print("---NŒUD: RÉCUPÉRATION DE DOCUMENTS---")
-        question = state["question"]
-        retriever = state.get("retriever")
-    
-        if retriever is None:
-            print("⚠️ Aucun retriever n'est disponible. Retourne une liste vide.")
-            # Ensure retriever is None in the output state
-            return {"documents": [], "question": question, "retriever": None}
-    
-        try:
-            print(f"🔎 Utilisation du retriever: {type(retriever)}")
-            documents = retriever.invoke(question)
-            print(f"✅ {len(documents)} document(s) récupéré(s).")
+    def _retrieve_documents(self, state: GraphState, config: RunnableConfig) -> Dict[str, Any]:
+            print("---NŒUD: RÉCUPÉRATION DE DOCUMENTS---")
+            question = state["question"]
             
-            # THIS IS THE FIX 👇
-            # After using the retriever, set it to None in the state. This
-            # prevents the checkpointer from trying to serialize it.
-            return {"documents": documents, "question": question, "retriever": None}
+            # Get the retriever from the config, NOT the state
+            retriever = config["configurable"].get("retriever")
     
-        except Exception as e:
-            print(f"❌ Erreur lors de la récupération de documents: {e}")
-            # Also ensure retriever is None on error
-            return {"documents": [], "question": question, "retriever": None}
+            if retriever is None:
+                print("⚠️ Aucun retriever n'a été trouvé dans la config. Utilisation du retriever par défaut.")
+                retriever = self.default_retriever # Fallback to default
+            
+            if retriever is None:
+                print("❌ Erreur critique: Aucun retriever par défaut n'est disponible.")
+                return {"documents": []}
+    
+            try:
+                print(f"🔎 Utilisation du retriever: {type(retriever)}")
+                documents = retriever.invoke(question)
+                print(f"✅ {len(documents)} document(s) récupéré(s).")
+                # The return value no longer needs to mention the retriever
+                return {"documents": documents}
+            except Exception as e:
+                print(f"❌ Erreur lors de la récupération de documents: {e}")
+                return {"documents": []}
     def _grade_documents(self, state: GraphState) -> Dict[str, Any]:
         print("---NŒUD: ÉVALUATION DE LA PERTINENCE DES DOCUMENTS---")
         question = state["question"]
