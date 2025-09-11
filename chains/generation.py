@@ -6,7 +6,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableMap, RunnablePassthrough
 # LLM Groq
 llm = ChatGroq(
-    model="openai/gpt-oss-20b",  # or another supported model
+    model="gemma2-9b-it",  # or another supported model
     temperature=0.0,             # 🔹 strict, prevents hallucinations
     api_key=os.getenv("GROQ_API_KEY")
 )
