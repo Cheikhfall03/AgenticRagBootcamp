@@ -7,8 +7,7 @@ from langchain_core.runnables import RunnableMap, RunnablePassthrough
 # LLM Groq
 llm = ChatGroq(
     model="llama-3.1-8b-instant",  # or another supported model
-    temperature=0.0,             # 🔹 strict, prevents hallucinations
-    api_key=os.getenv("GROQ_API_KEY")
+    temperature=0.0
 )
 
 # ✅ Strict anti-hallucination prompt
